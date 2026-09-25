@@ -5,7 +5,7 @@
 <title>Administration · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=3">
+<link rel="stylesheet" href="assets/style.css?v=4">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -28,7 +28,9 @@
 <section id="app" class="hidden">
   <div id="notifBar" class="msg ok hidden" style="margin:0 0 14px;cursor:pointer"></div>
   <div class="tabs">
-    <button data-tab="pub" class="active">➕ Publier</button>
+    <button data-tab="dash" class="active">🏠 Tableau de bord</button>
+    <button data-tab="seances">📅 Séances</button>
+    <button data-tab="pub">➕ Publier</button>
     <button data-tab="items">📚 Contenus</button>
     <button data-tab="suivi">✅ Suivi<span id="dotSub"></span></button>
     <button data-tab="msgs">💬 Messages<span id="dotMsg"></span></button>
@@ -37,11 +39,60 @@
     <button data-tab="anns">📢 Annonces</button>
   </div>
 
+  <!-- TABLEAU DE BORD -->
+  <div data-panel="dash" class="stack">
+    <div class="row"><div><h1 style="margin:0">Bonjour 👋</h1><p class="sub" style="margin:0" id="dToday"></p></div><div class="spacer"></div>
+      <button class="btn ghost" onclick="showTab('seances')">➕ Nouvelle séance</button><button class="btn" onclick="showTab('pub')">➕ Publier</button></div>
+    <div class="card next-course"><h2>📅 Cours aujourd'hui et demain</h2><div id="dSess"></div></div>
+    <div class="dash-grid">
+      <div class="card"><h2>🖊 À corriger<span id="dCorrN"></span></h2><div id="dCorr"></div></div>
+      <div class="card"><h2>💬 Questions en attente<span id="dMsgN"></span></h2><div id="dMsgs"></div></div>
+      <div class="card"><h2>⏰ Devoirs en retard</h2><div id="dLate"></div></div>
+      <div class="card"><h2>🧠 Fiches à retenir</h2><div id="dMemo"></div></div>
+    </div>
+  </div>
+
+  <!-- SEANCES -->
+  <div data-panel="seances" class="stack hidden">
+    <form id="setForm" class="card stack">
+      <h2 style="margin:0">⚙️ Réglages des cours en ligne</h2>
+      <div class="grid2" style="grid-template-columns:2fr 1fr">
+        <div><label>Mon lien Google Meet (utilisé par défaut)</label><input id="setMeet" type="text" placeholder="https://meet.google.com/abc-defg-hij"></div>
+        <div><label>Le lien apparaît … minutes avant</label><input id="setBefore" type="text" inputmode="numeric" placeholder="10"></div>
+      </div>
+      <div class="row"><button class="btn sm" type="submit">Enregistrer</button><span class="hint">Le bouton « Rejoindre le cours » s'affiche pour l'élève à partir de ce moment, jusqu'à la fin du cours.</span></div>
+      <div id="setMsg" class="msg hidden"></div>
+    </form>
+    <form id="sessForm" class="card stack">
+      <h2 style="margin:0">➕ Nouvelle séance</h2>
+      <div><label>Élève(s)</label><div id="sessStu" class="checks" style="max-height:140px"></div></div>
+      <div class="grid3">
+        <div><label>Date</label><input id="sDate" type="date" required></div>
+        <div><label>Heure</label><input id="sTime" type="time" required value="10:00"></div>
+        <div><label>Durée</label><select id="sDur"><option value="30">30 min</option><option value="45">45 min</option><option value="60" selected>1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div>
+      </div>
+      <div class="grid3">
+        <div><label>Matière</label><select id="sSub"></select></div>
+        <div><label>Chapitre</label><select id="sCh"></select></div>
+        <div><label>Titre <span class="muted small">(facultatif)</span></label><input id="sTitle" type="text" placeholder="ex. Révision loi d'Ohm"></div>
+      </div>
+      <div><label>Lien Meet spécifique <span class="muted small">(facultatif — sinon votre lien par défaut)</span></label><input id="sLink" type="text" placeholder="https://meet.google.com/…"></div>
+      <div class="row"><label style="margin:0;display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="sRepeat"> Séance fixe : répéter chaque semaine</label>
+        <span id="sUntilBox" class="hidden row" style="gap:6px"><span class="small">jusqu'au</span><input id="sUntil" type="date" style="width:auto"></span></div>
+      <div><button class="btn" type="submit">Créer la séance</button></div>
+      <div id="sessMsg" class="msg hidden"></div>
+    </form>
+    <div class="card"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">📅 Séances</h2><div class="spacer"></div>
+      <div class="seg" id="sessView"><button type="button" data-v="up" class="active">À venir</button><button type="button" data-v="past">Passées</button></div></div>
+      <div id="sessAdmin"></div></div>
+  </div>
+
   <!-- PUBLIER -->
-  <div data-panel="pub">
+  <div data-panel="pub" class="hidden">
     <form id="pubForm" class="card stack">
       <div class="row"><h2 style="margin:0">Publier</h2><div class="spacer"></div>
-        <div class="seg" id="kindSeg"><button type="button" data-k="doc" class="active">📄 Document</button><button type="button" data-k="devoir">📝 Devoir</button><button type="button" data-k="qcm">☑️ QCM</button></div></div>
+        <div class="seg" id="kindSeg"><button type="button" data-k="doc" class="active">📄 Document</button><button type="button" data-k="devoir">📝 Devoir</button><button type="button" data-k="qcm">☑️ QCM</button><button type="button" data-k="memo">🧠 À retenir</button></div></div>
+      <div><label>Séance liée <span class="muted small">(facultatif)</span></label><select id="pSession"></select><div class="hint">Le contenu apparaîtra dans cette séance (« ce qu'on a fait »), et les élèves de la séance sont choisis automatiquement.</div></div>
       <div class="grid2">
         <div><label>Matière</label><select id="pSubject"></select></div>
         <div><label>Chapitre</label><select id="pChapter"></select></div>
@@ -74,6 +125,14 @@ Explication : (facultatif)"></textarea>
           <div class="row"><div class="seg" id="qPrevSeg"><button type="button" data-v="check" class="active">✔ Vérifier les réponses</button><button type="button" data-v="play">👁 Tester comme un élève</button></div><div class="spacer"></div><button type="button" class="btn sm ghost" id="qBack">✏️ Revenir au texte</button></div>
           <div id="qPrevBody" class="card"></div>
         </div>
+      </div>
+      <div id="memoBox" class="hidden stack">
+        <div class="row"><label style="margin:0">🧠 Cartes à retenir <span class="muted small">(une par ligne)</span></label><div class="spacer"></div><button type="button" class="btn sm ghost" id="cExample">📋 Insérer un exemple</button></div>
+        <textarea id="cText" class="qz-paste" style="min-height:180px" spellcheck="false" placeholder="Loi d'Ohm → U = R × I
+Unité de la puissance → le watt (W)
+Puissance électrique → P = U × I"></textarea>
+        <div class="hint">Écrivez « question → réponse » (ou « question : réponse », « question | réponse »). L'élève s'entraîne avec ces cartes et ne peut confirmer qu'il a retenu qu'en les sachant toutes. Ensuite, il révise à 1, 3, 7, 14 et 30 jours. Ajoutez aussi la fiche elle-même (PDF, photo d'un tableau) dans « Fichier » ci-dessus, et/ou le texte dans « Commentaire ».</div>
+        <div id="cStatus"></div>
       </div>
       <div class="grid2">
         <div id="dueBox" class="hidden"><label for="pDue">Date limite</label><input id="pDue" type="datetime-local"><div class="hint">Laissez vide si pas de date limite.</div></div>
@@ -163,10 +222,19 @@ Explication : (facultatif)"></textarea>
 </div></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js?v=3"></script>
-<script src="assets/qcm.js?v=1"></script>
+<script src="assets/common.js?v=4"></script>
+<script src="assets/qcm.js?v=2"></script>
 <script>
-const S = { students: [], groups: [], sg: [], subjects: [], chapters: [], items: [], iStu: [], iGrp: [], subs: [], msgs: [], anns: [], aStu: [], aGrp: [] };
+const S = { students: [], groups: [], sg: [], subjects: [], chapters: [], items: [], iStu: [], iGrp: [], subs: [], msgs: [], anns: [], aStu: [], aGrp: [],
+  sessions: [], sStu: [], views: [], memo: [], attempts: [], settings: [] };
+KIND.memo = "Fiche à retenir";
+const setting = (k, d) => { const r = S.settings.find(x => x.key === k); return r ? r.value : d; };
+const hm = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const dayLbl = d => { const x = new Date(d), t = new Date(); const k = Math.round((new Date(x.toDateString()) - new Date(t.toDateString())) / 864e5);
+  return k === 0 ? "Aujourd'hui" : k === 1 ? "Demain" : k === -1 ? "Hier" : x.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }); };
+const sessEnd = s => new Date(new Date(s.starts_at).getTime() + s.duration_min * 60000);
+const sessStudents = id => S.sStu.filter(x => x.session_id === id).map(x => x.student_id);
+const sessLink = s => s.meet_link || setting("meet_link", "");
 let kind = "doc", tgt = "all", aTgt = "all", conv = null, lastNotif = null;
 const byId = (arr, id) => S[arr].find(x => x.id === id) || {};
 const nameOf = id => byId("students", id).name || "?";
@@ -206,14 +274,18 @@ async function loadAll(quiet) {
       q(sb.from("items").select("*").order("publish_at", { ascending: false })), q(sb.from("item_students").select("*")), q(sb.from("item_groups").select("*")),
       q(sb.from("submissions").select("*")), q(sb.from("messages").select("*").order("created_at")),
       q(sb.from("announcements").select("*").order("created_at", { ascending: false })), q(sb.from("announcement_targets").select("*")), q(sb.from("announcement_groups").select("*")),
+      q(sb.from("sessions").select("*").order("starts_at")), q(sb.from("session_students").select("*")), q(sb.from("item_views").select("*")),
+      q(sb.from("memo_progress").select("*")), q(sb.from("quiz_attempts").select("item_id,student_id,score,max_score,created_at")), q(sb.from("settings").select("*")),
     ]);
-    [S.students, S.groups, S.sg, S.subjects, S.chapters, S.items, S.iStu, S.iGrp, S.subs, S.msgs, S.anns, S.aStu, S.aGrp] = r;
+    [S.students, S.groups, S.sg, S.subjects, S.chapters, S.items, S.iStu, S.iGrp, S.subs, S.msgs, S.anns, S.aStu, S.aGrp,
+     S.sessions, S.sStu, S.views, S.memo, S.attempts, S.settings] = r;
   } catch (err) { if (!quiet) alert("Erreur de chargement : " + err.message); return; }
   renderAll();
 }
 function renderAll() {
   fillSubjectSelects(); renderTargets("#tgtBox", tgt, "t"); renderTargets("#aBox", aTgt, "a");
   renderItems(); renderSuiviSelect(); renderSuivi(); renderConvs(); renderStudents(); renderGroups(); renderSubjects(); renderAnns(); notifs();
+  renderDash(); renderSessAdmin(); fillSessForm(); fillSessionSelect();
 }
 function notifs() {
   const nSub = S.subs.filter(s => !s.seen_by_teacher).length, nMsg = S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).length;
@@ -242,8 +314,10 @@ function applyKind() {
   $("#pubMsg").classList.add("hidden");
   $("#dueBox").classList.toggle("hidden", kind === "doc");
   $("#qcmBox").classList.toggle("hidden", kind !== "qcm");
-  $("#pFileLbl").textContent = kind === "devoir" ? "Sujet du devoir (facultatif)" : "Fichier (facultatif)";
-  $("#pubBtn").textContent = kind === "doc" ? "Publier le document" : kind === "devoir" ? "Publier le devoir" : "Publier le QCM";
+  $("#memoBox").classList.toggle("hidden", kind !== "memo");
+  $("#dueBox").classList.toggle("hidden", kind === "doc" || kind === "memo");
+  $("#pFileLbl").textContent = kind === "devoir" ? "Sujet du devoir (facultatif)" : kind === "memo" ? "Fiche à retenir : PDF, photo d'un tableau… (facultatif)" : "Fichier (facultatif)";
+  $("#pubBtn").textContent = { doc: "Publier le document", devoir: "Publier le devoir", qcm: "Publier le QCM", memo: "Publier la fiche à retenir" }[kind];
 }
 function renderTargets(box, mode, prefix) {
   const el = $(box); el.classList.toggle("hidden", mode === "all");
@@ -295,6 +369,9 @@ function showQcmPreview(r) {
   $("#qStatus").innerHTML = errs.length
     ? `<div class="qz-warn err"><b>⚠️ ${errs.length} problème(s) à corriger avant de publier :</b><br>${errs.map(w => (w.n ? `Question ${w.n} : ` : "") + esc(w.msg)).join("<br>")}</div>`
     : `<div class="qz-warn ok"><b>✔ ${r.questions.length} question(s) détectée(s)</b> — vérifiez les bonnes réponses (en vert), puis publiez.</div>`;
+  const warns = r.warnings.filter(w => w.level === "warn");
+  if (warns.length) $("#qStatus").innerHTML += `<div class="qz-warn" style="background:#fff4e0;color:#a15c00;margin-top:8px">${warns.map(w => "⚠️ " + esc(w.msg)).join("<br>")}</div>`;
+  if (r.ignored && r.ignored.length) $("#qStatus").innerHTML += `<div class="qz-warn" style="background:#f2f4f7;color:#344054;margin-top:8px"><b>Lignes non utilisées</b> (titres, consignes…) — vérifiez qu'aucune question n'y figure :<br>${r.ignored.slice(0, 8).map(l => "• " + esc(l.slice(0, 120))).join("<br>")}</div>`;
   const body = $("#qPrevBody");
   if (qView === "play" && r.questions.length && !errs.length) {
     const play = () => QCM.player(body, r.questions, { preview: true, onFinish: async ans => QCM.result(body, r.questions, ans, { onRetry: play }) });
@@ -346,6 +423,12 @@ $("#pubForm").addEventListener("submit", async e => {
     const ids = tgt === "all" ? [] : checkedIn("#tgtBox", "tchk");
     if (tgt !== "all" && !ids.length) throw new Error(tgt === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
     if (kind === "doc" && !f && !$("#pComment").value.trim()) throw new Error("ajoutez un fichier ou un commentaire");
+    let cards = null;
+    if (kind === "memo") {
+      const cr = QCM.parseCards($("#cText").value); cards = cr.cards;
+      if (cr.bad.length) throw new Error(`ligne(s) de cartes non comprise(s) : « ${cr.bad.slice(0, 2).join(" », « ")} » — utilisez « question → réponse »`);
+      if (!cards.length && !f && !$("#pComment").value.trim()) throw new Error("ajoutez des cartes, un fichier ou un texte à retenir");
+    }
     btn.disabled = true;
     let path = null;
     if (f) { prog.textContent = "Envoi du fichier…"; path = await uploadPublic(f, "docs"); }
@@ -356,14 +439,16 @@ $("#pubForm").addEventListener("submit", async e => {
       file_path: path, file_name: f ? f.name : null,
       subject_id: $("#pSubject").value || null, chapter_id: ch && ch !== "__new" ? ch : null,
       for_all: tgt === "all", publish_at: fromLocalInput($("#pPub").value) || new Date().toISOString(),
-      due_at: kind === "doc" ? null : fromLocalInput($("#pDue").value), quiz,
+      due_at: kind === "doc" || kind === "memo" ? null : fromLocalInput($("#pDue").value), quiz, cards,
+      session_id: $("#pSession").value || null,
     }).select().single());
     if (tgt === "students") await q(sb.from("item_students").insert(ids.map(s => ({ item_id: item.id, student_id: s }))));
     if (tgt === "groups") await q(sb.from("item_groups").insert(ids.map(g => ({ item_id: item.id, group_id: g }))));
     const when = $("#pPub").value ? ` (visible à partir du ${fmtDT(fromLocalInput($("#pPub").value))})` : "";
-    showMsg($("#pubMsg"), `${KIND[kind]} publié ✔${when}`, "ok");
+    showMsg($("#pubMsg"), `${KIND[kind]} ${kind === "memo" ? "publiée" : "publié"} ✔${when}`, "ok");
     $("#pTitle").value = ""; $("#pComment").value = ""; $("#pLevel").value = ""; fileInput.value = ""; $("#fileName").textContent = ""; $("#pDue").value = ""; $("#pPub").value = "";
     if (kind === "qcm") resetQuiz();
+    if (kind === "memo") { $("#cText").value = ""; $("#cStatus").innerHTML = ""; }
     await loadAll();
   } catch (err) {
     showMsg($("#pubMsg"), "Erreur : " + (err.message || err));
@@ -394,7 +479,7 @@ function renderItems() {
       <div class="body">
         <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span><span class="badge">${KIND[it.kind]}</span>${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${it.kind === "qcm" ? `<span class="small muted">${(it.quiz || []).length} question(s)</span>` : ""}${planned ? `<span class="pill wait">⏰ Planifié · ${fmtDT(it.publish_at)}</span>` : ""}</div>
         <div class="small muted">${sub ? "📁 " + esc(sub) + (ch ? " › " + esc(ch) : "") + " · " : ""}${fmtDate(it.created_at)}${it.due_at ? " · à rendre avant le " + fmtDT(it.due_at) : ""}</div>
-        <div style="margin-top:6px">${targetLabel(it)}</div>
+        <div style="margin-top:6px">${targetLabel(it)} <span class="small muted" title="Élèves ayant ouvert ce contenu">👁 vu par ${S.views.filter(v => v.item_id === it.id).length}/${nT}</span>${it.session_id && byId("sessions", it.session_id).id ? ` <span class="small muted">· 📅 séance du ${fmtDate(byId("sessions", it.session_id).starts_at)}</span>` : ""}${it.kind === "memo" ? ` <span class="small muted">· 🧠 ${(it.cards || []).length} carte(s), retenue par ${S.memo.filter(m => m.item_id === it.id && m.confirmed_at).length}/${nT}</span>` : ""}</div>
         ${it.comment ? `<div class="comment">${esc(it.comment)}</div>` : ""}
         <div class="row" style="margin-top:10px">
           ${it.file_path ? `<button class="btn sm ghost" onclick="preview(fileUrl(byId('items','${it.id}').file_path), byId('items','${it.id}').file_name)">👁 Aperçu</button>` : ""}
@@ -449,6 +534,7 @@ function renderSuiviSelect() {
   const cur = $("#sItem").value;
   const list = S.items.filter(i => i.kind !== "doc");
   $("#sItem").innerHTML = list.length ? list.map(i => {
+    if (i.kind === "memo") return `<option value="${i.id}">🧠 ${esc(i.title)}</option>`;
     const n = S.subs.filter(s => s.item_id === i.id && !s.seen_by_teacher).length;
     return `<option value="${i.id}">${i.kind === "qcm" ? "☑️" : "📝"} ${esc(i.title)}${n ? ` — ${n} nouveau(x)` : ""}</option>`;
   }).join("") : `<option value="">Aucun devoir</option>`;
@@ -464,6 +550,7 @@ async function markSeen() {
 }
 function renderSuivi() {
   const it = byId("items", $("#sItem").value);
+  if (it.kind === "memo") return renderMemoSuivi(it);
   if (!it.id) { $("#sStats").innerHTML = ""; $("#sTable").innerHTML = `<div class="empty">Publiez un devoir ou un QCM pour suivre les rendus.</div>`; return; }
   const due = it.due_at ? new Date(it.due_at) : null, now = new Date();
   const rows = targetsOf(it).map(sid => ({ sid, s: S.subs.find(x => x.item_id === it.id && x.student_id === sid) }))
@@ -481,7 +568,7 @@ function renderSuivi() {
     else st = `<span class="pill done">${due && new Date(s.submitted_at) > due ? "Rendu en retard" : "Rendu"}</span>`;
     return `<div class="list-row"><div style="min-width:170px"><b>${esc(nameOf(sid))}</b> ${s && !s.seen_by_teacher ? `<span class="dot">nouveau</span>` : ""}<div class="small muted">${s ? "le " + fmtDT(s.submitted_at) : ""}</div></div>
       ${st}<div class="spacer"></div>
-      ${s ? (it.kind === "qcm" ? `<b>${s.score}/${s.max_score}</b><button class="btn sm ghost" onclick="viewAnswers('${s.id}')">Voir ses réponses</button>` : "")
+      ${s ? (it.kind === "qcm" ? `<b>${s.score}/${s.max_score}</b>${S.attempts.filter(a => a.item_id === it.id && a.student_id === sid).length ? `<span class="small muted">+ ${S.attempts.filter(a => a.item_id === it.id && a.student_id === sid).length} entraînement(s)</span>` : ""}<button class="btn sm ghost" onclick="viewAnswers('${s.id}')">Voir ses réponses</button>` : "")
           + (s.files || []).map((f, k) => `<button class="btn sm ghost" onclick="openRendu('${s.id}',${k})">📎 ${esc(f.name.length > 22 ? f.name.slice(0, 20) + "…" : f.name)}</button>`).join("")
           + `<button class="btn sm" onclick="gradeForm('${s.id}')">${s.graded_at ? "✏️ Modifier la correction" : "🖊 Corriger"}</button>` : ""}
       </div>`;
@@ -659,6 +746,196 @@ async function renameSubject(id) { const n = prompt("Nouveau nom :", byId("subje
 async function delSubject(id) { if (confirm(`Supprimer la matière « ${byId("subjects", id).name} » et ses chapitres ? Les contenus seront rangés dans « Autres ».`)) { await sb.from("subjects").delete().eq("id", id); loadAll(); } }
 async function renameChapter(id) { const n = prompt("Nouveau nom :", byId("chapters", id).name); if (n && n.trim()) { await sb.from("chapters").update({ name: n.trim() }).eq("id", id); loadAll(); } }
 async function delChapter(id) { if (confirm(`Supprimer le chapitre « ${byId("chapters", id).name} » ? Les contenus resteront dans la matière.`)) { await sb.from("chapters").delete().eq("id", id); loadAll(); } }
+
+
+// ---------- Tableau de bord professeur ----------
+function renderDash() {
+  $("#dToday").textContent = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const now = new Date(), in2 = new Date(); in2.setDate(in2.getDate() + 2); in2.setHours(0, 0, 0, 0);
+  const soon = S.sessions.filter(s => s.status === "planned" && sessEnd(s) > now && new Date(s.starts_at) < in2);
+  $("#dSess").innerHTML = soon.length ? soon.map(s => sessRow(s, true)).join("") : `<div class="empty">Aucun cours aujourd'hui ni demain.</div>`;
+  // a corriger : devoirs rendus non corriges
+  const corr = S.subs.filter(x => !x.graded_at && byId("items", x.item_id).kind === "devoir").sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at));
+  $("#dCorrN").innerHTML = corr.length ? `<span class="dot">${corr.length}</span>` : "";
+  $("#dCorr").innerHTML = corr.length ? corr.map(x => `<div class="todo-row" onclick="gradeForm('${x.id}')"><div style="flex:1"><div class="title">${esc(nameOf(x.student_id))} — ${esc(byId("items", x.item_id).title)}</div>
+      <div class="small muted">rendu ${dayLbl(x.submitted_at).toLowerCase()} à ${hm(x.submitted_at)}</div></div>${!x.seen_by_teacher ? `<span class="badge new">Nouveau</span>` : ""}<button class="btn sm">🖊 Corriger</button></div>`).join("")
+    : `<div class="empty">Rien à corriger 🎉</div>`;
+  // questions
+  const waiting = [...new Set(S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).map(m => m.student_id))];
+  $("#dMsgN").innerHTML = waiting.length ? `<span class="dot">${waiting.length}</span>` : "";
+  $("#dMsgs").innerHTML = waiting.length ? waiting.map(id => { const last = S.msgs.filter(m => m.student_id === id && !m.from_teacher).pop();
+    return `<div class="todo-row" onclick="showTab('msgs');openConv('${id}')"><div style="flex:1;min-width:0"><div class="title">${esc(nameOf(id))}</div><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(last.body)}</div></div><button class="btn sm">Répondre</button></div>`; }).join("")
+    : `<div class="empty">Aucune question en attente.</div>`;
+  // retards
+  const late = [];
+  S.items.filter(i => i.kind !== "doc" && i.kind !== "memo" && i.due_at && new Date(i.due_at) < now).forEach(it =>
+    targetsOf(it).forEach(sid => { if (!S.subs.some(x => x.item_id === it.id && x.student_id === sid)) late.push({ it, sid }); }));
+  $("#dLate").innerHTML = late.length ? late.slice(0, 12).map(({ it, sid }) => `<div class="todo-row" onclick="openSuivi('${it.id}')"><div style="flex:1"><div class="title">${esc(nameOf(sid))}</div><div class="small muted">${esc(it.title)} · attendu le ${fmtDT(it.due_at)}</div></div><span class="pill late">En retard</span></div>`).join("")
+    : `<div class="empty">Aucun retard.</div>`;
+  // fiches
+  const memos = S.items.filter(i => i.kind === "memo" && new Date(i.publish_at) <= now);
+  $("#dMemo").innerHTML = memos.length ? memos.slice(0, 8).map(it => { const t = targetsOf(it), ok = S.memo.filter(m => m.item_id === it.id && m.confirmed_at && t.includes(m.student_id)).length;
+    return `<div class="todo-row" onclick="openSuivi('${it.id}')"><div style="flex:1"><div class="title">${esc(it.title)}</div><div class="prog"><span style="width:${t.length ? ok / t.length * 100 : 0}%"></span></div></div><span class="small"><b>${ok}/${t.length}</b> retenue(s)</span></div>`; }).join("")
+    : `<div class="empty">Aucune fiche à retenir publiée.</div>`;
+}
+
+// ---------- Seances ----------
+let sessView = "up";
+seg("#sessView", "v", v => { sessView = v; renderSessAdmin(); });
+function sessRow(s, compact) {
+  const names = sessStudents(s.id).map(nameOf).join(", ") || "<i>aucun élève</i>";
+  const nIt = S.items.filter(i => i.session_id === s.id).length, link = sessLink(s);
+  const st = s.status === "cancelled" ? `<span class="pill late">Annulée</span>` : s.status === "done" ? `<span class="pill done">Faite</span>` : sessEnd(s) < new Date() ? `<span class="pill wait">À clôturer</span>` : `<span class="pill todo">Prévue</span>`;
+  return `<div class="sess"><div class="row">
+      <div style="min-width:0"><div class="sess-date">${dayLbl(s.starts_at)} · ${hm(s.starts_at)} – ${hm(sessEnd(s))} ${s.series_id ? `<span class="small muted" title="Séance fixe">🔁</span>` : ""}</div>
+        <div class="small muted">👤 ${names}${[byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).length ? " · " + esc([byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ")) : ""} · ${nIt} contenu(s)</div></div>
+      <div class="spacer"></div>${st}
+      ${link && s.status === "planned" ? `<a class="btn sm" style="background:#1b7f4b" href="${esc(link)}" target="_blank" rel="noopener">🎥 Meet</a>` : ""}
+      <button class="btn sm ghost" onclick="sessNotes('${s.id}')">📝 Compte-rendu</button>
+      ${compact ? "" : `<button class="btn sm ghost" onclick="editSess('${s.id}')">✏️</button><button class="btn sm danger" onclick="delSess('${s.id}')">🗑</button>`}
+    </div>${s.notes ? `<div class="comment" style="margin-top:8px">${esc(s.notes)}</div>` : ""}</div>`;
+}
+function renderSessAdmin() {
+  const now = new Date();
+  const list = sessView === "up"
+    ? S.sessions.filter(s => sessEnd(s) > now && s.status !== "done")
+    : S.sessions.filter(s => sessEnd(s) <= now || s.status === "done").reverse();
+  $("#sessAdmin").innerHTML = list.length ? list.slice(0, 60).map(s => sessRow(s)).join("") : `<div class="empty">${sessView === "up" ? "Aucune séance prévue. Créez-en une ci-dessus." : "Aucune séance passée."}</div>`;
+}
+function fillSessForm() {
+  const keep = $$("#sessStu input:checked").map(c => c.value);
+  $("#sessStu").innerHTML = S.students.length ? S.students.map(x => `<label><input type="checkbox" value="${x.id}" ${keep.includes(x.id) ? "checked" : ""}> ${esc(x.name)}</label>`).join("") : `<span class="small muted">Ajoutez d'abord des élèves.</span>`;
+  const cs = $("#sSub").value;
+  $("#sSub").innerHTML = `<option value="">—</option>` + S.subjects.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join(""); $("#sSub").value = cs;
+  fillSessChap();
+  if (!$("#sDate").value) { const d = new Date(); d.setDate(d.getDate() + 1); $("#sDate").value = toLocalInput(d).slice(0, 10); }
+  if (document.activeElement !== $("#setMeet")) $("#setMeet").value = setting("meet_link", "");
+  if (document.activeElement !== $("#setBefore")) $("#setBefore").value = setting("join_before_min", 10);
+  $("#sLink").placeholder = setting("meet_link", "") ? "par défaut : " + setting("meet_link", "") : "https://meet.google.com/…";
+}
+function fillSessChap() { const c = $("#sCh").value; $("#sCh").innerHTML = `<option value="">—</option>` + S.chapters.filter(x => x.subject_id === $("#sSub").value).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join(""); $("#sCh").value = c; }
+$("#sSub").onchange = fillSessChap;
+$("#sRepeat").onchange = () => { $("#sUntilBox").classList.toggle("hidden", !$("#sRepeat").checked); if (!$("#sUntil").value) { const d = new Date(); d.setMonth(d.getMonth() + 3); $("#sUntil").value = toLocalInput(d).slice(0, 10); } };
+$("#setForm").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    const link = $("#setMeet").value.trim(), before = Math.max(0, parseInt($("#setBefore").value, 10) || 0);
+    if (link && !/^https?:\/\//.test(link)) throw new Error("le lien doit commencer par https://");
+    await q(sb.from("settings").upsert([{ key: "meet_link", value: link }, { key: "join_before_min", value: before }]));
+    showMsg($("#setMsg"), "Réglages enregistrés ✔", "ok"); loadAll();
+  } catch (err) { showMsg($("#setMsg"), "Erreur : " + err.message); }
+};
+$("#sessForm").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    const stu = $$("#sessStu input:checked").map(c => c.value);
+    if (!stu.length) throw new Error("choisissez au moins un élève");
+    const link = $("#sLink").value.trim();
+    if (link && !/^https?:\/\//.test(link)) throw new Error("le lien doit commencer par https://");
+    const first = new Date(`${$("#sDate").value}T${$("#sTime").value}`);
+    if (isNaN(first)) throw new Error("date ou heure invalide");
+    const dates = [first];
+    const repeat = $("#sRepeat").checked, series = repeat ? uid() : null;
+    if (repeat) { const until = new Date(`${$("#sUntil").value}T23:59`); let d = new Date(first);
+      while (dates.length < 60) { d = new Date(d); d.setDate(d.getDate() + 7); if (d > until) break; dates.push(d); } }
+    const rows = dates.map(d => ({ starts_at: d.toISOString(), duration_min: +$("#sDur").value, subject_id: $("#sSub").value || null, chapter_id: $("#sCh").value || null,
+      title: $("#sTitle").value.trim() || null, meet_link: link || null, series_id: series }));
+    const made = await q(sb.from("sessions").insert(rows).select());
+    await q(sb.from("session_students").insert(made.flatMap(m => stu.map(sid => ({ session_id: m.id, student_id: sid })))));
+    showMsg($("#sessMsg"), made.length > 1 ? `${made.length} séances créées (chaque semaine) ✔` : "Séance créée ✔", "ok");
+    $("#sTitle").value = ""; $("#sLink").value = ""; $("#sRepeat").checked = false; $("#sUntilBox").classList.add("hidden");
+    loadAll();
+  } catch (err) { showMsg($("#sessMsg"), "Erreur : " + err.message); }
+};
+function sessNotes(id) {
+  const s = byId("sessions", id);
+  const its = S.items.filter(i => i.session_id === id);
+  const box = openModal(`<div class="row"><h2 style="margin:0">📝 Séance du ${dayLbl(s.starts_at).toLowerCase()} à ${hm(s.starts_at)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small muted">👤 ${sessStudents(id).map(nameOf).join(", ")}</p>
+    <form id="snForm" class="stack"><div><label>Ce qu'on a fait (visible par l'élève)</label><textarea id="snNotes" placeholder="ex. Loi d'Ohm, exercices 1 à 4. À faire : exercices 5 et 6.">${esc(s.notes || "")}</textarea></div>
+      <div><label>Statut</label><select id="snStatus"><option value="planned">Prévue</option><option value="done">Faite</option><option value="cancelled">Annulée</option></select></div>
+      <div><label>Contenus de la séance (${its.length})</label>${its.length ? its.map(i => `<div class="small">• ${KIND[i.kind]} : ${esc(i.title)}</div>`).join("") : `<div class="small muted">Aucun contenu pour l'instant.</div>`}
+        <button type="button" class="btn sm ghost" style="margin-top:8px" onclick="addToSession('${id}')">➕ Ajouter un fichier / exercice / correction / QCM à cette séance</button></div>
+      <div><button class="btn" type="submit">Enregistrer</button></div><div id="snMsg" class="msg hidden"></div></form>`);
+  $("#snStatus", box).value = s.status === "planned" && sessEnd(s) < new Date() ? "done" : s.status;
+  $("#snForm", box).onsubmit = async e => { e.preventDefault();
+    try { await q(sb.from("sessions").update({ notes: $("#snNotes", box).value.trim() || null, status: $("#snStatus", box).value }).eq("id", id)); closeModal(); loadAll(); }
+    catch (err) { showMsg($("#snMsg", box), "Erreur : " + err.message); } };
+}
+function addToSession(id) {
+  closeModal(); showTab("pub"); fillSessionSelect(id); $("#pSession").value = id; $("#pSession").dispatchEvent(new Event("change"));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function editSess(id) {
+  const s = byId("sessions", id), loc = toLocalInput(s.starts_at);
+  const box = openModal(`<div class="row"><h2 style="margin:0">✏️ Modifier la séance</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <form id="esF" class="stack" style="margin-top:12px">
+      <div><label>Élève(s)</label><div class="checks" style="max-height:120px">${S.students.map(x => `<label><input type="checkbox" class="esS" value="${x.id}" ${sessStudents(id).includes(x.id) ? "checked" : ""}> ${esc(x.name)}</label>`).join("")}</div></div>
+      <div class="grid3"><div><label>Date</label><input id="eD" type="date" value="${loc.slice(0, 10)}"></div><div><label>Heure</label><input id="eT" type="time" value="${loc.slice(11, 16)}"></div>
+        <div><label>Durée (min)</label><input id="eDur" type="text" inputmode="numeric" value="${s.duration_min}"></div></div>
+      <div><label>Titre</label><input id="eTi" type="text" value="${esc(s.title || "")}"></div>
+      <div><label>Lien Meet spécifique</label><input id="eL" type="text" value="${esc(s.meet_link || "")}" placeholder="vide = lien par défaut"></div>
+      <div><button class="btn" type="submit">Enregistrer</button></div><div id="esM" class="msg hidden"></div></form>`);
+  $("#esF", box).onsubmit = async e => { e.preventDefault();
+    try {
+      const d = new Date(`${$("#eD", box).value}T${$("#eT", box).value}`); if (isNaN(d)) throw new Error("date invalide");
+      await q(sb.from("sessions").update({ starts_at: d.toISOString(), duration_min: parseInt($("#eDur", box).value, 10) || 60, title: $("#eTi", box).value.trim() || null, meet_link: $("#eL", box).value.trim() || null }).eq("id", id));
+      await q(sb.from("session_students").delete().eq("session_id", id));
+      const stu = $$(".esS:checked", box).map(c => c.value);
+      if (stu.length) await q(sb.from("session_students").insert(stu.map(sid => ({ session_id: id, student_id: sid }))));
+      closeModal(); loadAll();
+    } catch (err) { showMsg($("#esM", box), "Erreur : " + err.message); } };
+}
+async function delSess(id) {
+  const s = byId("sessions", id);
+  try {
+    if (s.series_id && S.sessions.filter(x => x.series_id === s.series_id && new Date(x.starts_at) > new Date(s.starts_at)).length) {
+      const all = confirm("Séance fixe (chaque semaine).\nOK = supprimer celle-ci ET toutes les suivantes.\nAnnuler = choisir de ne supprimer que celle-ci.");
+      if (all) { await q(sb.from("sessions").delete().eq("series_id", s.series_id).gte("starts_at", s.starts_at)); return loadAll(); }
+    }
+    if (!confirm("Supprimer cette séance ? (les contenus liés sont conservés)")) return;
+    await q(sb.from("sessions").delete().eq("id", id)); loadAll();
+  } catch (err) { alert("Erreur : " + err.message); }
+}
+function fillSessionSelect(keep) {
+  const cur = keep || $("#pSession").value, now = new Date();
+  const list = S.sessions.filter(s => s.status !== "cancelled" && new Date(s.starts_at) > new Date(now.getTime() - 30 * 864e5) && new Date(s.starts_at) < new Date(now.getTime() + 14 * 864e5))
+    .sort((a, b) => Math.abs(new Date(a.starts_at) - now) - Math.abs(new Date(b.starts_at) - now));
+  $("#pSession").innerHTML = `<option value="">— Aucune —</option>` + list.map(s => `<option value="${s.id}">${dayLbl(s.starts_at)} ${hm(s.starts_at)} · ${esc(sessStudents(s.id).map(nameOf).join(", "))}${s.subject_id ? " · " + esc(byId("subjects", s.subject_id).name) : ""}</option>`).join("");
+  $("#pSession").value = list.some(s => s.id === cur) ? cur : "";
+}
+$("#pSession").addEventListener("change", () => {
+  const s = byId("sessions", $("#pSession").value); if (!s.id) return;
+  $$("#tgtSeg button").forEach(b => b.classList.toggle("active", b.dataset.t === "students")); tgt = "students"; renderTargets("#tgtBox", tgt, "t");
+  const stu = sessStudents(s.id); $$("#tgtBox .tchk").forEach(c => c.checked = stu.includes(c.value));
+  if (s.subject_id) { $("#pSubject").value = s.subject_id; fillChapters(s.chapter_id); }
+});
+
+// ---------- A retenir : apercu des cartes + suivi ----------
+$("#cExample").onclick = () => { if (!$("#cText").value.trim() || confirm("Remplacer le texte actuel par l'exemple ?")) { $("#cText").value = QCM.CARDS_EXAMPLE; cardStatus(); } };
+$("#cText").addEventListener("input", cardStatus);
+function cardStatus() {
+  const r = QCM.parseCards($("#cText").value);
+  $("#cStatus").innerHTML = !$("#cText").value.trim() ? "" : `<div class="qz-warn ${r.bad.length ? "err" : "ok"}"><b>${r.cards.length} carte(s)</b>${r.bad.length ? ` · ${r.bad.length} ligne(s) non comprise(s) : « ${esc(r.bad[0])} »` : ""}</div>
+    ${r.cards.length ? `<div class="checks" style="grid-template-columns:1fr;max-height:160px;margin-top:6px">${r.cards.map(c => `<div class="small"><b>${esc(c.front)}</b> → ${esc(c.back)}</div>`).join("")}</div>` : ""}`;
+}
+function renderMemoSuivi(it) {
+  const t = targetsOf(it), now = new Date();
+  const rows = t.map(sid => ({ sid, m: S.memo.find(x => x.item_id === it.id && x.student_id === sid), seen: S.views.some(v => v.item_id === it.id && v.student_id === sid) }))
+    .sort((a, b) => nameOf(a.sid).localeCompare(nameOf(b.sid)));
+  const ok = rows.filter(r => r.m && r.m.confirmed_at).length;
+  $("#sStats").innerHTML = `<div class="stat"><span class="small muted">Fiche retenue</span><b>${ok} / ${rows.length}</b></div>
+    <div class="stat"><span class="small muted">Cartes</span><b>${(it.cards || []).length}</b></div>
+    <div class="stat"><span class="small muted">À réviser maintenant</span><b style="color:#a15c00">${rows.filter(r => r.m && r.m.confirmed_at && new Date(r.m.next_review_at) <= now).length}</b></div>`;
+  $("#sTable").innerHTML = rows.length ? rows.map(({ sid, m, seen }) => {
+    let st;
+    if (!m) st = seen ? `<span class="pill wait">Ouverte, pas encore travaillée</span>` : `<span class="pill late">Pas encore ouverte</span>`;
+    else if (!m.confirmed_at) st = `<span class="pill memo">En cours · ${m.last_known}/${m.last_total} du premier coup</span>`;
+    else if (new Date(m.next_review_at) <= now) st = `<span class="pill late">À réviser (retenue le ${fmtDate(m.confirmed_at)})</span>`;
+    else st = `<span class="pill done">Retenue ✓ · prochaine révision le ${fmtDate(m.next_review_at)}</span>`;
+    return `<div class="list-row"><b style="min-width:170px">${esc(nameOf(sid))}</b>${st}<div class="spacer"></div><span class="small muted">${m ? m.reviews + " entraînement(s)" + (m.last_review_at ? " · dernier " + dayLbl(m.last_review_at).toLowerCase() : "") : ""}</span></div>`;
+  }).join("") : `<div class="empty">Aucun élève destinataire.</div>`;
+}
 
 // ---------- Annonces ----------
 $("#annForm").addEventListener("submit", async e => {

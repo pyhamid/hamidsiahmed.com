@@ -5,7 +5,7 @@
 <title>Espace cours · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=3">
+<link rel="stylesheet" href="assets/style.css?v=4">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -26,25 +26,49 @@
   </section>
 
   <section id="space" class="hidden">
-    <div class="row" style="margin-bottom:20px">
-      <div><h1 id="hello"></h1><p class="sub" style="margin:0">Vos cours, devoirs et messages.</p></div>
+    <div class="row" style="margin-bottom:18px">
+      <div><h1 id="hello"></h1><p class="sub" style="margin:0" id="today"></p></div>
       <div class="spacer"></div>
       <button class="btn ghost" id="logout">Se déconnecter</button>
     </div>
-    <div id="annBox" class="card hidden" style="margin-bottom:18px"><h2>📢 Annonces</h2><div id="anns"></div></div>
 
     <div class="tabs">
-      <button data-tab="cours" class="active">📚 Mes cours</button>
+      <button data-tab="home" class="active">🏠 Accueil</button>
+      <button data-tab="seances">📅 Séances</button>
+      <button data-tab="cours">📚 Mes cours<span id="dotNew"></span></button>
       <button data-tab="devoirs">📝 Devoirs & QCM<span id="dotDev"></span></button>
+      <button data-tab="memo">🧠 À retenir<span id="dotMemo"></span></button>
       <button data-tab="messages">💬 Messages<span id="dotMsg"></span></button>
     </div>
 
-    <div data-panel="cours">
+    <!-- ACCUEIL -->
+    <div data-panel="home" class="stack">
+      <div id="nextCourse"></div>
+      <div id="annBox" class="card hidden"><h2>📢 Annonces</h2><div id="anns"></div></div>
+      <div class="dash-grid">
+        <div class="card"><h2>✅ À faire</h2><div id="todo"></div></div>
+        <div class="card"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">🆕 Nouveautés</h2><div class="spacer"></div><button class="btn sm ghost hidden" id="seenAll">Tout marquer comme vu</button></div><div id="news"></div></div>
+      </div>
+      <div class="card"><h2>📈 Ma progression</h2><div id="progress"></div></div>
+    </div>
+
+    <!-- SEANCES -->
+    <div data-panel="seances" class="hidden"><div id="sessList"></div></div>
+
+    <!-- COURS -->
+    <div data-panel="cours" class="hidden">
       <div class="row" style="margin-bottom:14px"><input id="search" type="text" placeholder="Rechercher un document…" style="max-width:320px"></div>
       <div id="folders"></div>
     </div>
 
     <div data-panel="devoirs" class="hidden"><div class="card"><div id="devList"></div></div></div>
+
+    <!-- A RETENIR -->
+    <div data-panel="memo" class="hidden stack">
+      <div class="card memo-hero"><h2 style="margin:0 0 4px">🧠 À retenir</h2>
+        <p class="small" style="margin:0">Comprendre ne suffit pas : il faut <b>retenir</b>. Entraînez-vous avec les cartes jusqu'à tout savoir, puis révisez quand le site vous le demande (après 1, 3, 7, 14 puis 30 jours). C'est la méthode la plus efficace pour ne plus oublier les formules.</p></div>
+      <div class="card"><div id="memoList"></div></div>
+    </div>
 
     <div data-panel="messages" class="hidden">
       <div class="card stack">
@@ -64,11 +88,19 @@
 <footer>© <span id="y"></span> Hamid Si Ahmed</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js?v=3"></script>
-<script src="assets/qcm.js?v=1"></script>
+<script src="assets/common.js?v=4"></script>
+<script src="assets/qcm.js?v=2"></script>
 <script>
 $("#y").textContent = new Date().getFullYear();
-let data = null, me = null, aboutItem = null;
+let data = null, me = null, aboutItem = null, curTab = "home", tick = null;
+const KINDX = { ...KIND, memo: "À retenir" };
+const subName = id => (data.subjects.find(s => s.id === id) || {}).name || "";
+const chapName = id => (data.chapters.find(c => c.id === id) || {}).name || "";
+const findItem = id => data.items.find(i => i.id === id);
+const day = d => { const x = new Date(d), t = new Date(); const k = Math.round((new Date(x.toDateString()) - new Date(t.toDateString())) / 864e5);
+  return k === 0 ? "Aujourd'hui" : k === 1 ? "Demain" : k === -1 ? "Hier" : x.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }); };
+const hm = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const endOf = s => new Date(new Date(s.starts_at).getTime() + s.duration_min * 60000);
 
 // ---------- Connexion ----------
 async function login(name, code, silent) {
@@ -86,59 +118,169 @@ async function login(name, code, silent) {
 }
 const reload = () => login(me.name, me.code, true);
 
-const findItem = id => data.items.find(i => i.id === id);
-function previewItem(id) { const it = findItem(id); preview(fileUrl(it.file_path), it.file_name); }
+// ---------- "Vu" ----------
+async function markSeen(ids) {
+  ids = ids.filter(id => { const it = findItem(id); return it && !it.seen; });
+  if (!ids.length) return;
+  ids.forEach(id => findItem(id).seen = true);
+  await sb.rpc("student_mark_seen", { p_name: me.name, p_code: me.code, p_items: ids });
+  renderBadges(); if (curTab === "home") renderHome();
+}
+function openItem(id) {
+  const it = findItem(id); markSeen([id]);
+  if (it.kind === "devoir") return openDevoir(id);
+  if (it.kind === "qcm") return openQcm(id);
+  if (it.kind === "memo") return openMemo(id);
+  if (it.file_path) return preview(fileUrl(it.file_path), it.file_name);
+  openModal(`<div class="row"><h2 style="margin:0">${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    ${it.comment ? `<div class="comment" style="margin-top:12px">${esc(it.comment)}</div>` : ""}`);
+}
+function previewItem(id) { markSeen([id]); const it = findItem(id); preview(fileUrl(it.file_path), it.file_name); }
 function previewCorr(id) { const s = findItem(id).submission; preview(fileUrl(s.corrected_path), s.corrected_name); }
 
 // ---------- Statuts ----------
+function memoState(it) {
+  const m = it.memo;
+  if (!m || !m.confirmed_at) return { cls: "memo", txt: m && m.reviews ? `En cours · ${m.last_known}/${m.last_total}` : "À apprendre", todo: true };
+  if (m.next_review_at && new Date(m.next_review_at) <= new Date()) return { cls: "late", txt: "À réviser", todo: true, due: true };
+  return { cls: "done", txt: "Retenue ✓", todo: false };
+}
 function status(it) {
   const s = it.submission, due = it.due_at ? new Date(it.due_at) : null, now = new Date();
+  if (it.kind === "memo") return memoState(it);
   if (it.kind === "qcm") {
     if (s) return { cls: "graded", txt: `Fait · ${s.score}/${s.max_score}` };
-    if (due && due < now) return { cls: "late", txt: "En retard" };
-    return { cls: "todo", txt: "À faire" };
+    if (due && due < now) return { cls: "late", txt: "En retard", todo: true };
+    return { cls: "todo", txt: "À faire", todo: true };
   }
   if (it.kind !== "devoir") return null;
   if (s && s.graded_at) return { cls: "graded", txt: "Corrigé" + (s.grade ? " · " + s.grade : "") };
   if (s) return { cls: "done", txt: due && new Date(s.submitted_at) > due ? "Rendu en retard" : "Rendu" };
-  if (due && due < now) return { cls: "late", txt: "En retard" };
-  return { cls: "todo", txt: "À rendre" };
+  if (due && due < now) return { cls: "late", txt: "En retard", todo: true };
+  return { cls: "todo", txt: "À rendre", todo: true };
 }
 
-// ---------- Rendu ----------
+// ---------- Rendu general ----------
 function render() {
   $("#login").classList.add("hidden"); $("#space").classList.remove("hidden");
   $("#hello").textContent = "Bonjour " + data.name.split(" ")[0] + " 👋";
-  const anns = data.announcements || [];
-  $("#annBox").classList.toggle("hidden", !anns.length);
-  $("#anns").innerHTML = anns.map(a => `<div class="ann"><div class="date">${fmtDate(a.created_at)}</div>${esc(a.message)}</div>`).join("");
-  const todo = data.items.filter(i => (i.kind === "devoir" || i.kind === "qcm") && !i.submission).length;
-  $("#dotDev").innerHTML = todo ? `<span class="dot">${todo}</span>` : "";
-  const unread = data.messages.filter(m => m.from_teacher && !m.read).length;
-  $("#dotMsg").innerHTML = unread ? `<span class="dot">${unread}</span>` : "";
-  renderFolders(); renderDevoirs(); renderThread();
+  $("#today").textContent = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  renderBadges(); renderHome(); renderSessions(); renderFolders(); renderDevoirs(); renderMemos(); renderThread();
+  clearInterval(tick); tick = setInterval(() => { renderNext(); maybeReloadForLink(); }, 30000);
+}
+function renderBadges() {
+  const dot = (sel, n) => $(sel).innerHTML = n ? `<span class="dot">${n}</span>` : "";
+  dot("#dotNew", data.items.filter(i => !i.seen && i.kind === "doc").length);
+  dot("#dotDev", data.items.filter(i => (i.kind === "devoir" || i.kind === "qcm") && !i.submission).length);
+  dot("#dotMemo", data.items.filter(i => i.kind === "memo" && memoState(i).todo).length);
+  dot("#dotMsg", data.messages.filter(m => m.from_teacher && !m.read).length);
 }
 
-function itemRow(it) {
+function itemRow(it, opts = {}) {
   const st = status(it);
-  const icoTxt = it.kind === "qcm" ? "QCM" : it.kind === "devoir" ? "DEV" : esc(ext(it.file_name) || "NOTE");
+  const icoTxt = it.kind === "qcm" ? "QCM" : it.kind === "devoir" ? "DEV" : it.kind === "memo" ? "🧠" : esc(ext(it.file_name) || "NOTE");
   const due = it.due_at ? `<span class="small ${new Date(it.due_at) < new Date() && !it.submission ? "" : "muted"}">· à rendre avant le ${fmtDT(it.due_at)}</span>` : "";
   let actions = "";
-  if (it.file_path) actions += `<button class="btn sm" onclick="previewItem('${it.id}')">👁 Aperçu</button>
-    <a class="btn sm ghost" href="${fileUrl(it.file_path, true)}">Télécharger</a>`;
-  if (it.kind === "devoir") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openDevoir('${it.id}')">${it.submission ? "Voir mon rendu" : "📤 Rendre mon travail"}</button>`;
-  if (it.kind === "qcm") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openQcm('${it.id}')">${it.submission ? "Voir ma correction" : "▶ Commencer le QCM"}</button>`;
+  if (it.file_path && it.kind !== "memo") actions += `<button class="btn sm" onclick="previewItem('${it.id}')">👁 Aperçu</button>
+    <a class="btn sm ghost" href="${fileUrl(it.file_path, true)}" onclick="markSeen(['${it.id}'])">Télécharger</a>`;
+  if (it.kind === "devoir") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openItem('${it.id}')">${it.submission ? "Voir mon rendu" : "📤 Rendre mon travail"}</button>`;
+  if (it.kind === "qcm") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openItem('${it.id}')">${it.submission ? "Voir ma correction / m'entraîner" : "▶ Commencer le QCM"}</button>`;
+  if (it.kind === "memo") actions += `<button class="btn sm" onclick="openItem('${it.id}')">🧠 ${it.memo && it.memo.confirmed_at ? "Réviser" : "Apprendre la fiche"}</button>`;
+  if (it.kind === "doc" && !it.file_path && !it.seen) actions += `<button class="btn sm ghost" onclick="markSeen(['${it.id}'])">✓ Vu</button>`;
   actions += `<button class="btn sm ghost" onclick="askAbout('${it.id}')">💬 Question</button>`;
+  const where = opts.where ? `<div class="small muted">📁 ${esc(subName(it.subject_id) || "Autres")}${it.chapter_id ? " › " + esc(chapName(it.chapter_id)) : ""}</div>` : "";
   return `<div class="doc">
     <div class="ico ${it.kind}">${icoTxt}</div>
     <div class="body">
-      <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span>${it.kind !== "doc" ? `<span class="badge">${KIND[it.kind]}</span>` : ""}${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${st ? `<span class="pill ${st.cls}">${st.txt}</span>` : ""}</div>
-      <div class="small muted">${fmtDate(it.publish_at)} ${due}</div>
-      ${it.comment ? `<div class="comment">${esc(it.comment)}</div>` : ""}
+      <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span>${!it.seen ? `<span class="badge new">Nouveau</span>` : ""}${it.kind !== "doc" ? `<span class="badge">${KINDX[it.kind]}</span>` : ""}${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${st ? `<span class="pill ${st.cls}">${st.txt}</span>` : ""}</div>
+      ${where}<div class="small muted">${fmtDate(it.publish_at)} ${due}</div>
+      ${it.comment && it.kind !== "memo" ? `<div class="comment">${esc(it.comment)}</div>` : ""}
       <div class="row" style="margin-top:10px">${actions}</div>
     </div></div>`;
 }
 
+// ---------- Accueil ----------
+function nextSession() {
+  const now = new Date();
+  return data.sessions.filter(s => s.status === "planned" && endOf(s) > now).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at))[0];
+}
+function renderNext() {
+  const s = nextSession(), el = $("#nextCourse");
+  if (!s) { el.innerHTML = `<div class="card"><h2 style="margin:0 0 4px">📅 Prochain cours</h2><p class="muted" style="margin:0">Aucun cours prévu pour le moment.</p></div>`; return; }
+  const start = new Date(s.starts_at), openAt = new Date(start.getTime() - data.join_before_min * 60000), now = new Date();
+  const mins = Math.round((start - now) / 60000);
+  const when = mins > 0 && mins < 120 ? `dans ${mins} min` : now >= start ? "en cours" : "";
+  el.innerHTML = `<div class="card next-course">
+    <div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.05em">📅 Prochain cours ${when ? "· " + when : ""}</div>
+    <div class="row" style="margin-top:6px;align-items:flex-end">
+      <div><div style="font-size:1.4rem;font-weight:800">${day(s.starts_at)} · ${hm(s.starts_at)} – ${hm(endOf(s))}</div>
+        <div class="muted">${esc([subName(s.subject_id), chapName(s.chapter_id), s.title].filter(Boolean).join(" · ") || "Cours de soutien")}${s.with && s.with.length ? " · avec " + esc(s.with.join(", ")) : ""}</div></div>
+      <div class="spacer"></div>
+      ${s.meet_link ? `<a class="join" href="${esc(s.meet_link)}" target="_blank" rel="noopener">🎥 Rejoindre le cours</a>`
+                    : `<span class="pill wait">🔒 Le lien apparaîtra ${day(openAt) === "Aujourd'hui" ? "à " + hm(openAt) : "le " + day(openAt).toLowerCase() + " à " + hm(openAt)}</span>`}
+    </div></div>`;
+}
+function maybeReloadForLink() { const s = nextSession(); if (s && !s.meet_link && new Date() >= new Date(new Date(s.starts_at).getTime() - data.join_before_min * 60000)) reload(); }
+
+function renderHome() {
+  renderNext();
+  const anns = data.announcements || [];
+  $("#annBox").classList.toggle("hidden", !anns.length);
+  $("#anns").innerHTML = anns.slice(0, 3).map(a => `<div class="ann"><div class="date">${fmtDate(a.created_at)}</div>${esc(a.message)}</div>`).join("");
+  // A faire
+  const todo = data.items.filter(i => { const st = status(i); return st && st.todo; })
+    .sort((a, b) => (a.kind === "memo" && memoState(a).due ? -1 : 0) - (b.kind === "memo" && memoState(b).due ? -1 : 0) || new Date(a.due_at || "2999") - new Date(b.due_at || "2999"));
+  $("#todo").innerHTML = todo.length ? todo.map(it => { const st = status(it);
+    return `<div class="todo-row" onclick="openItem('${it.id}')"><div class="ico ${it.kind}" style="width:34px;height:34px">${it.kind === "memo" ? "🧠" : it.kind === "qcm" ? "QCM" : "DEV"}</div>
+      <div style="flex:1;min-width:0"><div class="title">${esc(it.title)}</div><div class="small muted">${KINDX[it.kind]}${it.due_at ? " · avant le " + fmtDT(it.due_at) : ""}</div></div>
+      <span class="pill ${st.cls}">${st.txt}</span></div>`; }).join("") : `<div class="empty">Tout est fait 🎉</div>`;
+  // Nouveautes
+  const news = data.items.filter(i => !i.seen).slice(0, 8);
+  $("#seenAll").classList.toggle("hidden", !news.length);
+  $("#news").innerHTML = news.length ? news.map(it => `<div class="todo-row" onclick="openItem('${it.id}')"><span class="badge new">Nouveau</span>
+      <div style="flex:1;min-width:0"><div class="title">${esc(it.title)}</div><div class="small muted">${KINDX[it.kind]} · ${esc(subName(it.subject_id) || "Autres")} · ${fmtDate(it.publish_at)}</div></div></div>`).join("")
+    : `<div class="empty">Rien de nouveau.</div>`;
+  // Progression par matiere
+  const subs = data.subjects.filter(s => data.items.some(i => i.subject_id === s.id) || data.sessions.some(x => x.subject_id === s.id));
+  $("#progress").innerHTML = subs.length ? `<div class="grid3">${subs.map(s => {
+    const its = data.items.filter(i => i.subject_id === s.id);
+    const qcm = its.filter(i => i.kind === "qcm" && i.submission);
+    const avg = qcm.length ? qcm.reduce((a, i) => a + (+i.submission.score / +i.submission.max_score || 0), 0) / qcm.length * 20 : null;
+    const memos = its.filter(i => i.kind === "memo"), memoOk = memos.filter(i => i.memo && i.memo.confirmed_at).length;
+    const devs = its.filter(i => i.kind === "devoir"), devOk = devs.filter(i => i.submission).length;
+    const chaps = new Set([...its.map(i => i.chapter_id), ...data.sessions.filter(x => x.subject_id === s.id && x.status !== "cancelled" && new Date(x.starts_at) < new Date()).map(x => x.chapter_id)].filter(Boolean)).size;
+    const bar = (a, b) => b ? `<div class="prog"><span style="width:${a / b * 100}%"></span></div>` : "";
+    return `<div class="stat"><b style="font-size:1.05rem">${esc(s.name)}</b>
+      <div class="small" style="margin-top:6px">📖 ${chaps} chapitre(s) vu(s)</div>
+      <div class="small" style="margin-top:6px">☑️ QCM : ${avg === null ? "—" : avg.toFixed(1).replace(".", ",") + " / 20"} <span class="muted">(${qcm.length} fait(s))</span></div>
+      <div class="small" style="margin-top:6px">🧠 Fiches retenues : ${memoOk} / ${memos.length}</div>${bar(memoOk, memos.length)}
+      <div class="small" style="margin-top:6px">📝 Devoirs rendus : ${devOk} / ${devs.length}</div>${bar(devOk, devs.length)}</div>`;
+  }).join("")}</div>` : `<div class="empty">Votre progression apparaîtra ici.</div>`;
+}
+$("#seenAll").onclick = () => markSeen(data.items.filter(i => !i.seen).map(i => i.id));
+
+// ---------- Seances ----------
+function sessCard(s, past) {
+  const its = data.items.filter(i => i.session_id === s.id);
+  const status = s.status === "cancelled" ? `<span class="pill late">Annulé</span>` : past ? `<span class="pill done">Fait</span>` : `<span class="pill todo">Prévu</span>`;
+  return `<div class="sess ${past ? "past" : ""}">
+    <div class="row"><div><div class="sess-date">${day(s.starts_at)} · ${hm(s.starts_at)} – ${hm(endOf(s))}</div>
+      <div class="small muted">${esc([subName(s.subject_id), chapName(s.chapter_id), s.title].filter(Boolean).join(" · ") || "Cours de soutien")}${s.with && s.with.length ? " · avec " + esc(s.with.join(", ")) : ""}</div></div>
+      <div class="spacer"></div>${status}${s.meet_link ? `<a class="join" style="padding:8px 14px;font-size:.9rem" href="${esc(s.meet_link)}" target="_blank" rel="noopener">🎥 Rejoindre</a>` : ""}</div>
+    ${s.notes ? `<div class="comment" style="margin-top:10px"><b>Ce qu'on a fait :</b> ${esc(s.notes)}</div>` : ""}
+    ${its.length ? `<div style="margin-top:10px">${its.map(i => itemRow(i)).join("")}</div>` : ""}
+  </div>`;
+}
+function renderSessions() {
+  const now = new Date();
+  const up = data.sessions.filter(s => endOf(s) > now && s.status !== "cancelled" && s.status !== "done").sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const past = data.sessions.filter(s => !up.includes(s)).sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+  $("#sessList").innerHTML = `<div class="card" style="margin-bottom:16px"><h2>📅 À venir</h2>${up.length ? up.map(s => sessCard(s, false)).join("") : `<div class="empty">Aucun cours prévu.</div>`}</div>
+    <div class="card"><h2>🗂 Séances passées</h2><p class="hint" style="margin-top:-8px">Retrouvez ici ce qu'on a fait à chaque cours, avec les fichiers, exercices et corrections.</p>
+    ${past.length ? past.map(s => sessCard(s, true)).join("") : `<div class="empty">Pas encore de séance passée.</div>`}</div>`;
+}
+
+// ---------- Mes cours (dossiers) ----------
 function renderFolders() {
   const q = $("#search").value.trim().toLowerCase();
   const items = data.items.filter(i => !q || (i.title + " " + (i.comment || "")).toLowerCase().includes(q));
@@ -149,44 +291,83 @@ function renderFolders() {
     const chaps = [...data.chapters.filter(c => c.subject_id === s.id), { id: null, name: "Général" }];
     const inner = chaps.map(c => {
       const list = inSub.filter(i => (i.chapter_id || null) === c.id);
-      if (!list.length) return "";
-      return `<div class="chap">${esc(c.name)}</div>` + list.map(itemRow).join("");
+      return list.length ? `<div class="chap">${esc(c.name)}</div>` + list.map(i => itemRow(i)).join("") : "";
     }).join("");
-    return `<details class="folder" ${q || items.length <= 25 ? "open" : ""}><summary>📁 ${esc(s.name)}<span class="count">${inSub.length} élément(s)</span></summary><div class="inner">${inner}</div></details>`;
+    const nNew = inSub.filter(i => !i.seen).length;
+    return `<details class="folder" ${q || items.length <= 25 ? "open" : ""}><summary>📁 ${esc(s.name)}${nNew ? ` <span class="badge new">${nNew} nouveau(x)</span>` : ""}<span class="count">${inSub.length} élément(s)</span></summary><div class="inner">${inner}</div></details>`;
   }).join("");
   $("#folders").innerHTML = html || `<div class="card empty">${q ? "Aucun résultat." : "Aucun document pour le moment."}</div>`;
 }
-
 function renderDevoirs() {
   const list = data.items.filter(i => i.kind === "devoir" || i.kind === "qcm")
     .sort((a, b) => (!!a.submission - !!b.submission) || (new Date(a.due_at || "2999") - new Date(b.due_at || "2999")));
-  $("#devList").innerHTML = list.length ? list.map(itemRow).join("") : `<div class="empty">Aucun devoir pour le moment. 🎉</div>`;
+  $("#devList").innerHTML = list.length ? list.map(i => itemRow(i, { where: true })).join("") : `<div class="empty">Aucun devoir pour le moment. 🎉</div>`;
 }
 
+// ---------- A retenir ----------
+function renderMemos() {
+  const list = data.items.filter(i => i.kind === "memo").sort((a, b) => (memoState(b).todo - memoState(a).todo) || (!!memoState(b).due - !!memoState(a).due));
+  $("#memoList").innerHTML = list.length ? list.map(it => {
+    const st = memoState(it), m = it.memo;
+    return `<div class="todo-row" onclick="openItem('${it.id}')"><div class="ico memo">🧠</div>
+      <div style="flex:1;min-width:0"><div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span>${!it.seen ? `<span class="badge new">Nouveau</span>` : ""}</div>
+        <div class="small muted">📁 ${esc(subName(it.subject_id) || "Autres")}${it.chapter_id ? " › " + esc(chapName(it.chapter_id)) : ""} · ${(it.cards || []).length} carte(s)
+        ${m && m.confirmed_at && m.next_review_at ? " · prochaine révision : " + fmtDate(m.next_review_at) : ""}</div></div>
+      <span class="pill ${st.cls}">${st.txt}</span></div>`;
+  }).join("") : `<div class="empty">Pas encore de fiche à retenir.</div>`;
+}
+function openMemo(id) {
+  const it = findItem(id), cards = it.cards || [], st = memoState(it), m = it.memo;
+  const isImg = it.file_name && /\.(png|jpe?g|gif|webp)$/i.test(it.file_name);
+  const box = openModal(`
+    <div class="row" style="align-items:flex-start"><div><h2 style="margin:0">🧠 ${esc(it.title)}</h2>
+      <div class="small muted">${esc(subName(it.subject_id) || "")}${it.chapter_id ? " › " + esc(chapName(it.chapter_id)) : ""} · <span class="pill ${st.cls}">${st.txt}</span></div></div>
+      <div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <div id="memoBody" style="margin-top:14px">
+      ${it.comment ? `<div class="comment" style="font-size:1.05rem">${esc(it.comment)}</div>` : ""}
+      ${it.file_path ? (isImg ? `<img src="${fileUrl(it.file_path)}" alt="" style="max-width:100%;border-radius:10px;margin-top:12px;border:1px solid var(--line)">`
+                            : `<div class="row" style="margin-top:12px"><button class="btn sm" onclick="preview(fileUrl(findItem('${id}').file_path), findItem('${id}').file_name)">📄 Ouvrir la fiche</button></div>`) : ""}
+      ${cards.length ? `<div class="card" style="margin-top:14px;background:var(--bg)"><b>${cards.length} carte(s) à retenir</b>
+          <p class="small muted" style="margin:4px 0 12px">Lisez la fiche, puis entraînez-vous. Pour confirmer que vous l'avez retenue, il faut savoir <b>toutes les cartes du premier coup</b>.</p>
+          <button class="btn" id="startCards">▶ ${m && m.confirmed_at ? "Réviser" : "M'entraîner"}</button></div>`
+        : `<div class="row" style="margin-top:14px"><button class="btn" id="confirmMemo" ${m && m.confirmed_at && !st.due ? "disabled" : ""}>✔ J'ai lu et retenu cette fiche</button></div>`}
+      ${m && m.reviews ? `<p class="small muted" style="margin-top:12px">${m.reviews} révision(s)${m.confirmed_at ? " · retenue depuis le " + fmtDate(m.confirmed_at) : ""}${m.next_review_at ? " · prochaine révision : " + fmtDate(m.next_review_at) : ""}</p>` : ""}
+    </div>`, "qcmbox");
+  const send = async (known, total, out) => {
+    const { data: r, error } = await sb.rpc("student_memo_review", { p_name: me.name, p_code: me.code, p_item: id, p_known: known, p_total: total });
+    if (error) { if (out) out.innerHTML = `<div class="msg err">Erreur : ${esc(error.message)}</div>`; return; }
+    await reload();
+    const days = r.next_review_at ? Math.round((new Date(r.next_review_at) - new Date()) / 864e5) : 1;
+    const html = known >= total
+      ? `<div class="msg ok" style="text-align:center">✔ Fiche retenue ! Prochaine révision dans ${days} jour(s). Le professeur est informé.</div>`
+      : `<div class="msg err" style="text-align:center">Pas encore tout à fait : recommencez jusqu'à tout savoir du premier coup.</div><div class="row" style="justify-content:center;margin-top:10px"><button class="btn" onclick="openMemo('${id}')">Recommencer</button></div>`;
+    if (out) out.innerHTML = html + `<div class="row" style="justify-content:center;margin-top:10px"><button class="btn ghost" onclick="closeModal()">Fermer</button></div>`;
+  };
+  const sc = $("#startCards", box); if (sc) sc.onclick = () => QCM.flash($("#memoBody", box), cards, { onDone: (r, out) => send(r.known, r.total, out) });
+  const cm = $("#confirmMemo", box); if (cm) cm.onclick = async () => { cm.disabled = true; const out = document.createElement("div"); cm.after(out); await send(1, 1, out); };
+}
+
+// ---------- Messages ----------
 function renderThread() {
   const msgs = data.messages;
-  const title = id => (data.items.find(i => i.id === id) || {}).title;
+  const title = id => (findItem(id) || {}).title;
   $("#thread").innerHTML = msgs.length ? msgs.map(m => `<div class="bubble ${m.from_teacher ? "them" : "me"}">
       ${m.item_id && title(m.item_id) ? `<div class="meta" style="margin:0 0 4px">À propos de : ${esc(title(m.item_id))}</div>` : ""}${esc(m.body)}
       <div class="meta">${m.from_teacher ? "Professeur" : "Moi"} · ${fmtDT(m.created_at)}</div></div>`).join("")
     : `<div class="empty">Pas encore de message. Posez votre question ci-dessous.</div>`;
   const t = $("#thread"); t.scrollTop = t.scrollHeight;
 }
-
-// ---------- Onglets ----------
 function showTab(name) {
+  curTab = name;
   $$(".tabs button").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
   $$("[data-panel]").forEach(p => p.classList.toggle("hidden", p.dataset.panel !== name));
-  if (name === "messages" && data.messages.some(m => m.from_teacher && !m.read)) {
-    sb.rpc("student_read_messages", { p_name: me.name, p_code: me.code }).then(() => { data.messages.forEach(m => m.read = true); $("#dotMsg").innerHTML = ""; });
-  }
+  if (name === "messages") { renderThread(); if (data.messages.some(m => m.from_teacher && !m.read))
+    sb.rpc("student_read_messages", { p_name: me.name, p_code: me.code }).then(() => { data.messages.forEach(m => m.read = true); renderBadges(); }); }
 }
 $$(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
 $("#search").addEventListener("input", renderFolders);
-
-// ---------- Messages ----------
 function askAbout(id) {
-  aboutItem = id; const it = data.items.find(i => i.id === id);
+  aboutItem = id; const it = findItem(id);
   $("#msgAbout").textContent = "À propos de : " + it.title; $("#msgAbout").classList.remove("hidden");
   $("#msgAboutClear").classList.remove("hidden");
   closeModal(); showTab("messages"); $("#msgText").focus();
@@ -260,27 +441,32 @@ function openDevoir(id) {
 }
 
 // ---------- QCM ----------
-function openQcm(id) {
-  const it = findItem(id), s = it.submission, quiz = it.quiz || [];
+function openQcm(id, practice) {
+  const it = findItem(id), s = it.submission, quiz = it.quiz || [], p = it.practice || {};
   const box = openModal(`
     <div class="row" style="align-items:flex-start"><div><h2 style="margin:0">${esc(it.title)}</h2>
       <div class="small muted">${quiz.length} question(s)${it.level ? " · " + esc(it.level) : ""}${it.due_at ? " · à faire avant le " + fmtDT(it.due_at) : ""}</div></div>
       <div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     ${it.comment ? `<div class="comment" style="margin-top:10px">${esc(it.comment)}</div>` : ""}
-    ${s ? "" : `<p class="hint" style="margin:10px 0 0">Une seule tentative. Vous pouvez revenir sur vos réponses avant de cliquer sur « Terminer ».</p>`}
+    ${!s ? `<p class="hint" style="margin:10px 0 0">⚠️ <b>Seule la 1ʳᵉ tentative compte pour la note.</b> Vous pourrez ensuite refaire le QCM pour vous entraîner et revoir la correction.</p>`
+         : `<div class="row" style="margin-top:10px;gap:8px"><span class="pill graded">Note retenue (1ʳᵉ tentative) : ${s.score}/${s.max_score}</span>${p.count ? `<span class="pill wait">Entraînements : ${p.count} · meilleur ${p.best}/${quiz.length}</span>` : ""}</div>`}
+    ${practice ? `<div class="msg ok" style="margin-top:10px">🔁 Mode entraînement : ce résultat <b>ne change pas</b> votre note.</div>` : ""}
     <div id="qzBody" style="margin-top:16px"></div>`, "qcmbox");
   const el = $("#qzBody", box);
-  if (s) { QCM.result(el, quiz, s.answers || []); return; }
+  const retry = () => openQcm(id, true);
+  if (s && !practice) { QCM.result(el, quiz, s.answers || [], { onRetry: retry }); relabelRetry(el); return; }
   QCM.player(el, quiz, {
     onFinish: async answers => {
-      const { error } = await sb.rpc("student_submit_quiz", { p_name: me.name, p_code: me.code, p_item: it.id, p_answers: answers });
+      const fn = s ? "student_quiz_practice" : "student_submit_quiz";
+      const { error } = await sb.rpc(fn, { p_name: me.name, p_code: me.code, p_item: it.id, p_answers: answers });
       if (error) throw new Error(error.message);
       await reload();
       const fresh = findItem(id);
-      QCM.result(el, fresh.quiz || [], fresh.submission ? fresh.submission.answers : answers);
+      QCM.result(el, fresh.quiz || [], s ? answers : (fresh.submission ? fresh.submission.answers : answers), { onRetry: retry }); relabelRetry(el);
     }
   });
 }
+function relabelRetry(el) { const b = el.querySelector("[data-retry]"); if (b) b.textContent = "🔁 Refaire pour m'entraîner (ne compte pas)"; }
 
 // ---------- Demarrage ----------
 $("#loginForm").addEventListener("submit", e => {
