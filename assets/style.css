@@ -212,3 +212,10 @@ a.use:hover{background:var(--accent-soft);color:var(--accent)}
 .usage-bar span{display:block;height:100%;background:var(--accent)}
 .att-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
 .att-list:empty{display:none}
+/* v5.1 : sur telephone, tous les onglets sont visibles (grille) au lieu d'une bande a faire defiler */
+@media(max-width:899px){
+  .tabs{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));overflow:visible;gap:4px;padding-bottom:8px}
+  .tabs button{border:1px solid var(--line);border-radius:10px;margin:0;text-align:left;white-space:normal;background:#fff;padding:9px 10px}
+  .tabs button.active{background:var(--accent-soft);border-color:var(--accent)}
+  .seg{display:flex;flex-wrap:wrap}
+}
