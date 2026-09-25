@@ -18,6 +18,14 @@ const uid = () => (crypto.randomUUID ? crypto.randomUUID()
   : [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join(""));
 const safeName = (n) => (String(n || "fichier").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.\-]+/g, "_") || "fichier").slice(0, 80);
 const KIND = { doc: "Document", devoir: "Devoir", qcm: "QCM" };
+const isImgName = (n) => /\.(png|jpe?g|gif|webp|bmp)$/i.test(String(n || ""));
+const fmtSize = (b) => b == null ? "" : b < 1024 ? b + " o" : b < 1048576 ? Math.round(b / 1024) + " Ko" : (b / 1048576).toFixed(1).replace(".", ",") + " Mo";
+// Lien temporaire (15 min) vers un fichier du bucket prive "cours"
+async function signedUrl(path, downloadName) {
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, 900, downloadName ? { download: downloadName } : undefined);
+  if (error) throw error;
+  return data.signedUrl;
+}
 
 function showMsg(el, text, type = "err") {
   if (!el) return;

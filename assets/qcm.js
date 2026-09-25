@@ -42,8 +42,19 @@ const QCM = (() => {
   }
 
   function parse(text) {
-    const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n")
-      .map(l => l.replace(/ /g, " ").replace(/^\s*(?:[-•▪◦·]\s+)/, "").replace(/\*\*|__/g, "").trim());
+    const raw = String(text || "").replace(/\r\n?/g, "\n").split("\n")
+      .map(l => l.replace(/ /g, " ").replace(/\t/g, " ").replace(/^\s*#{1,6}\s*/, "").replace(/^\s*(?:[-•▪◦·]\s+|\*\s+(?![A-Ha-h][\).]))/, "").replace(/\*\*|__/g, "").trim());
+    // Propositions ecrites sur une seule ligne : "A) un   B) deux   C) trois"
+    const lines = [];
+    raw.forEach(l => {
+      const marks = [...l.matchAll(/(?:^|\s)\(?([A-Ha-h])[\).]\s+/g)];
+      const seq = marks.length >= 2 && marks.every((m, k) => m[1].toUpperCase() === LETTERS[k]);
+      if (seq) marks.forEach((m, k) => lines.push(l.slice(m.index, k + 1 < marks.length ? marks[k + 1].index : undefined).trim()));
+      else lines.push(l);
+    });
+    const ignored = [];
+    // la ligne suivante non vide est une proposition "A." -> cette ligne est un enonce
+    const nextIsChoiceA = i => { const n = lines.slice(i + 1).find(l => l); return !!n && /^[*✓✔✅]?\s*(?:\(\s*[Aa]\s*\)|\[\s*[Aa]\s*\]|[Aa]\s*[\).:\-–—])\s+\S/.test(n); };
     const qs = [], warnings = [];
     let cur = null, mode = "q";     // q = enonce, c = propositions, a = apres reponse, e = explication
     const keyAnswers = {};         // grille de reponses en fin de texte : { numero: "C" }
@@ -103,10 +114,13 @@ const QCM = (() => {
           cur.choices.push(clean(txt)); cur.marks.push(marked); mode = "c"; continue;
         }
       }
+      // Enonce non numerote suivi de "A." : nouvelle question
+      if (cur && cur.choices.length >= 2 && !cm && nextIsChoiceA(i)) { start(qs.length + 1, line); continue; }
       // Ligne de texte libre
       if (!cur) {
-        if (/\?\s*$/.test(line)) start(qs.length + 1, line); // question non numerotee
-        continue; // sinon : titre / consigne ignores
+        if (/\?\s*$/.test(line) || nextIsChoiceA(i)) start(qs.length + 1, line); // question non numerotee
+        else ignored.push(line);                                                  // titre / consigne
+        continue;
       }
       if (mode === "q") cur.q = clean(cur.q + " " + line);
       else if (mode === "c") {
@@ -126,7 +140,7 @@ const QCM = (() => {
       if (c.answerRaw !== null) correct = lettersFrom(c.answerRaw, c.choices);
       if (!correct.length && keyAnswers[c.num]) correct = lettersFrom(keyAnswers[c.num], c.choices);
       if (!correct.length && keyAnswers[k + 1]) correct = lettersFrom(keyAnswers[k + 1], c.choices);
-      if (!correct.length) correct = c.marks.map((m, i) => m ? i : -1).filter(i => i >= 0);
+      if (!correct.length) { const mk = c.marks.map((m, i) => m ? i : -1).filter(i => i >= 0); if (mk.length < c.choices.length) correct = mk; } // puces "* A)" partout = pas un marqueur
       const q = { q: clean(c.q.replace(/^[:\-–—]\s*/, "")), choices: c.choices, correct, multi: correct.length > 1 };
       if (c.explanation) q.explanation = clean(c.explanation);
       const n = k + 1;
@@ -136,7 +150,10 @@ const QCM = (() => {
       return q;
     });
     if (!out.length) warnings.push({ n: 0, level: "err", msg: "aucune question détectée. Commencez chaque question par « Q1. », « 1. » ou « Question 1 : »." });
-    return { questions: out, warnings, ok: out.length > 0 && !warnings.some(w => w.level === "err") };
+    // Verification : les numeros de questions doivent se suivre (1, 2, 3...)
+    const nums = qs.map(c => c.num);
+    nums.forEach((n, k) => { if (k && n !== nums[k - 1] + 1 && n !== k + 1) warnings.push({ n: k + 1, level: "warn", msg: `numérotation inattendue (n°${n} après n°${nums[k - 1]}) : vérifiez qu'aucune question ne manque` }); });
+    return { questions: out, warnings, ignored, ok: out.length > 0 && !warnings.some(w => w.level === "err") };
   }
 
   // ---------- Notation ----------
@@ -257,5 +274,79 @@ D. 40 V
 Réponse : C
 Explication : U = R × I = 10 × 2 = 20 V.`;
 
-  return { parse, score, player, result, prepare, LETTERS, EXAMPLE };
+  // =================== A RETENIR : cartes de memorisation ===================
+  // Une carte par ligne : "recto → verso", "recto -> verso", "recto :: verso", "recto | verso" ou "recto : verso"
+  // ou deux lignes "Q : ..." puis "R : ...".
+  function parseCards(text) {
+    const cards = [], bad = [];
+    const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n").map(l => l.replace(/ /g, " ").replace(/^\s*(?:[-•▪◦·*]|\d+[\).])\s+/, "").replace(/\*\*|__/g, "").trim());
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i]; if (!l) continue;
+      const qm = l.match(/^(?:q|question|recto)\s*[:：]\s*(.+)$/i);
+      if (qm) { const r = (lines[i + 1] || "").match(/^(?:r|réponse|reponse|verso)\s*[:：]\s*(.+)$/i); if (r) { cards.push({ front: qm[1].trim(), back: r[1].trim() }); i++; continue; } }
+      const sep = [/\s*(?:→|⇒|->|=>)\s*/, /\s*::\s*/, /\s+\|\s+/, /\s*[:：]\s+/].find(re => re.test(l));
+      if (sep) {
+        const k = l.search(sep), m = l.match(sep);
+        const front = l.slice(0, k).trim(), back = l.slice(k + m[0].length).trim();
+        if (front && back) { cards.push({ front, back }); continue; }
+      }
+      bad.push(l);
+    }
+    return { cards, bad };
+  }
+  const CARDS_EXAMPLE = `Loi d'Ohm → U = R × I
+Unité de la puissance → le watt (W)
+Puissance électrique → P = U × I
+Énergie électrique → E = P × t
+1 kWh en joules → 3,6 × 10⁶ J`;
+
+  // Entrainement : on retourne chaque carte, "je savais" / "je ne savais pas".
+  // Les cartes ratees reviennent a la fin jusqu'a ce que tout soit su.
+  // onDone({ known, total }) : known = cartes sues du premier coup.
+  function flash(el, cards, opts = {}) {
+    const order = cards.map((c, i) => i).sort(() => Math.random() - .5);
+    const first = {}; let queue = [...order], shown = false, done = 0;
+    const draw = () => {
+      if (!queue.length) {
+        const known = Object.values(first).filter(Boolean).length, total = cards.length;
+        el.innerHTML = `<div class="qz"><div class="qz-result">
+          <div class="qz-emoji">${known === total ? "🎉" : "💪"}</div>
+          <div class="qz-big">${known} / ${total}</div>
+          <div class="small muted" style="margin-bottom:12px">carte(s) sue(s) du premier coup</div>
+          <div id="fcOut"></div></div></div>`;
+        if (opts.onDone) opts.onDone({ known, total }, el.querySelector("#fcOut"));
+        return;
+      }
+      const c = cards[queue[0]];
+      el.innerHTML = `<div class="qz">
+        <div class="qz-top"><span class="qz-count">Carte ${Math.min(done + 1, cards.length)} / ${cards.length}</span><span class="small muted">${queue.length} restante(s)</span></div>
+        <div class="qz-bar"><span style="width:${done / cards.length * 100}%"></span></div>
+        <div class="fc ${shown ? "flip" : ""}">
+          <div class="fc-label">${shown ? "Réponse" : "Question"}</div>
+          <div class="fc-front">${esc(c.front)}</div>
+          ${shown ? `<div class="fc-back">${esc(c.back)}</div>` : `<div class="hint" style="margin-top:14px">Essayez de répondre dans votre tête, puis retournez la carte.</div>`}
+        </div>
+        <div class="qz-nav" style="justify-content:center">
+          ${shown ? `<button type="button" class="btn danger" data-a="0">✘ Je ne savais pas</button><button type="button" class="btn" data-a="1" style="background:#1b7f4b">✔ Je savais</button>`
+                  : `<button type="button" class="btn" data-show>🔄 Retourner la carte</button>`}
+        </div></div>`;
+      const sh = el.querySelector("[data-show]"); if (sh) sh.onclick = () => { shown = true; draw(); };
+      el.querySelectorAll("[data-a]").forEach(b => b.onclick = () => {
+        const k = queue.shift(), ok = b.dataset.a === "1";
+        if (!(k in first)) first[k] = ok;
+        if (ok) done++; else queue.push(k);
+        shown = false; draw();
+      });
+    };
+    draw();
+  }
+
+  // QCM enregistre -> texte modifiable (relu ensuite par parse)
+  function toText(questions) {
+    return (questions || []).map((q, k) => [`Q${k + 1}. ${q.q}`, ...q.choices.map((c, ci) => `${LETTERS[ci]}. ${c}`),
+      `${q.correct.length > 1 ? "Réponses" : "Réponse"} : ${q.correct.map(ci => LETTERS[ci]).join(" et ")}`,
+      ...(q.explanation ? [`Explication : ${q.explanation}`] : [])].join("\n")).join("\n\n");
+  }
+  const cardsToText = cards => (cards || []).map(c => `${c.front} → ${c.back}`).join("\n");
+  return { parse, score, player, result, prepare, LETTERS, EXAMPLE, parseCards, flash, CARDS_EXAMPLE, toText, cardsToText };
 })();

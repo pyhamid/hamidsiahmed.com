@@ -159,3 +159,56 @@ input[type=datetime-local]{width:100%;padding:10px 12px;border:1px solid var(--l
 .qz-check .qz-rv{border-left-color:var(--accent)}
 .qz-check .good{color:#1b7f4b;font-weight:700}
 .modal-box.qcmbox{max-width:820px}
+/* ---------- A retenir (cartes) ---------- */
+.fc{border:2px solid var(--line);border-radius:16px;padding:34px 22px;text-align:center;background:#fff;min-height:200px;display:flex;flex-direction:column;justify-content:center}
+.fc.flip{border-color:#b9c6ef;background:#fafbff}
+.fc-label{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+.fc-front{font-size:1.25rem;font-weight:700;white-space:pre-wrap}
+.fc-back{font-size:1.35rem;font-weight:800;color:var(--accent);margin-top:16px;padding-top:16px;border-top:1px dashed var(--line);white-space:pre-wrap}
+.memo-hero{background:linear-gradient(135deg,#fff7e6,#fff);border:1px solid #f5dfb3}
+.ico.memo{background:#fff4e0;color:#a15c00}
+.pill.memo{background:#fff4e0;color:#a15c00}
+.badge.new{background:#e5484d;color:#fff}
+.join{display:inline-flex;align-items:center;gap:8px;background:#1b7f4b;color:#fff;font-weight:800;padding:13px 20px;border-radius:12px;text-decoration:none;font-size:1.05rem}
+.join:hover{filter:brightness(1.08)}
+.next-course{border:2px solid #c9d6f7;background:linear-gradient(135deg,#eef3ff,#fff)}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.dash-grid{grid-template-columns:1fr}}
+.todo-row{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
+.todo-row:first-child{border-top:0}
+.todo-row:hover .title{color:var(--accent)}
+.prog{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:4px}
+.prog span{display:block;height:100%;background:var(--accent)}
+.sess{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;margin-bottom:10px}
+.sess.past{background:#fbfbfd}
+.sess-date{font-weight:800}
+.tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}
+.tabs button{white-space:nowrap}
+.todo-row .ico{font-size:.62rem;flex:none}
+.tabs button{padding:10px 11px}
+@media(min-width:900px){.tabs{flex-wrap:wrap;overflow:visible}}
+/* ---------- v5 : bibliotheque ---------- */
+.btn.ok{background:#e7f6ee;color:var(--ok)}
+.filebtn{display:inline-flex;gap:2px}
+.filebtn .btn:first-child{border-top-right-radius:0;border-bottom-right-radius:0}
+.filebtn .btn+.btn{border-top-left-radius:0;border-bottom-left-radius:0;padding-left:8px;padding-right:8px}
+label.inline{display:inline-flex;gap:8px;align-items:center;font-weight:500;margin:0}
+.ac-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.ac{border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer;color:var(--muted)}
+.ac.on{background:#e7f6ee;border-color:#bfe5cf;color:var(--ok)}
+.ac.off{background:#fff;color:#98a2b3}
+.ac:hover{filter:brightness(.97);border-color:var(--accent)}
+.uses{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.use{font-size:.8rem;background:var(--bg);border-radius:8px;padding:2px 8px;color:var(--text);text-decoration:none}
+a.use:hover{background:var(--accent-soft);color:var(--accent)}
+.att-row{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff;flex-wrap:wrap}
+.att-row select{width:auto;padding:6px 8px;font-size:.85rem}
+.ico-sm{flex:none;width:32px;height:32px;border-radius:8px;background:#fdecec;color:#c62828;display:grid;place-items:center;font-weight:800;font-size:.62rem}
+.lp-list{display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px}
+.lp-list label{display:flex;gap:10px;align-items:center;padding:8px;border-radius:8px;margin:0;font-weight:500;cursor:pointer}
+.lp-list label:hover{background:var(--bg)}
+.lp-list input{width:auto}
+.usage-bar{display:inline-block;width:140px;height:8px;border-radius:99px;background:var(--line);vertical-align:middle;overflow:hidden;margin-left:8px}
+.usage-bar span{display:block;height:100%;background:var(--accent)}
+.att-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.att-list:empty{display:none}
