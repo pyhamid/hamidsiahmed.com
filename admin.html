@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administration · Hamid Si Ahmed</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">Hamid <span>Si Ahmed</span> · <span class="muted" style="font-weight:500">Admin</span></a>
+  <nav><a href="cours.html">Espace élève</a><a href="#" id="logout" class="hidden">Déconnexion</a></nav>
+</div></header>
+<main><div class="wrap">
+
+<section id="login" style="max-width:420px;margin:30px auto 0">
+  <h1>Administration</h1>
+  <p class="sub">Réservé au professeur.</p>
+  <form id="loginForm" class="card stack">
+    <div><label for="email">E-mail</label><input id="email" type="email" required autocomplete="username"></div>
+    <div><label for="pwd">Mot de passe</label><input id="pwd" type="password" required autocomplete="current-password"></div>
+    <button class="btn" type="submit" style="width:100%;justify-content:center">Se connecter</button>
+    <div id="loginMsg" class="msg hidden"></div>
+  </form>
+</section>
+
+<section id="app" class="hidden">
+  <div class="tabs">
+    <button data-tab="docs" class="active">📄 Documents</button>
+    <button data-tab="students">👩‍🎓 Élèves</button>
+    <button data-tab="anns">📢 Annonces</button>
+  </div>
+
+  <!-- DOCUMENTS -->
+  <div data-panel="docs" class="stack">
+    <form id="docForm" class="card stack">
+      <h2>Envoyer un document</h2>
+      <div id="drop" class="drop">📎 Cliquez ou glissez un fichier ici (PDF, image, Word…)<div id="fileName" class="small" style="margin-top:6px;color:var(--text);font-weight:600"></div></div>
+      <input id="file" type="file" class="hidden">
+      <div><label for="dTitle">Titre</label><input id="dTitle" type="text" required placeholder="ex. Chapitre 3 – Exercices corrigés"></div>
+      <div><label for="dComment">Commentaire pour l'élève (facultatif)</label><textarea id="dComment" placeholder="ex. À faire pour jeudi, exercices 1 à 5."></textarea></div>
+      <div>
+        <label>Destinataires</label>
+        <div class="radio"><label><input type="radio" name="dTarget" value="all" checked> Toute la classe</label><label><input type="radio" name="dTarget" value="some"> Élèves choisis</label></div>
+        <div id="dChecks" class="checks hidden"></div>
+      </div>
+      <div class="row"><button class="btn" id="docBtn" type="submit">Envoyer</button><span id="docProg" class="small muted"></span></div>
+      <div id="docMsg" class="msg hidden"></div>
+    </form>
+    <div class="card">
+      <div class="row" style="margin-bottom:10px"><h2 style="margin:0">Documents envoyés</h2><div class="spacer"></div>
+        <select id="docFilter" style="max-width:220px"></select></div>
+      <div id="docList"></div>
+    </div>
+  </div>
+
+  <!-- ELEVES -->
+  <div data-panel="students" class="stack hidden">
+    <form id="stForm" class="card stack">
+      <h2>Ajouter un élève</h2>
+      <div class="row"><input id="stName" type="text" required placeholder="Nom et prénom" style="flex:1;min-width:200px"><button class="btn" type="submit">Ajouter</button></div>
+      <p class="small muted" style="margin:0">Un code personnel est créé automatiquement. Donnez à l'élève son <b>nom exact</b> et son <b>code</b>, avec le lien <b>hamidsiahmed.com/cours.html</b>.</p>
+      <div id="stMsg" class="msg hidden"></div>
+    </form>
+    <div class="card"><h2>Mes élèves</h2><div id="stList"></div></div>
+  </div>
+
+  <!-- ANNONCES -->
+  <div data-panel="anns" class="stack hidden">
+    <form id="annForm" class="card stack">
+      <h2>Nouvelle annonce</h2>
+      <textarea id="annText" required placeholder="ex. Le cours de jeudi est déplacé à vendredi 18h."></textarea>
+      <div>
+        <div class="radio"><label><input type="radio" name="aTarget" value="all" checked> Toute la classe</label><label><input type="radio" name="aTarget" value="some"> Élèves choisis</label></div>
+        <div id="aChecks" class="checks hidden"></div>
+      </div>
+      <div><button class="btn" type="submit">Publier</button></div>
+      <div id="annMsg" class="msg hidden"></div>
+    </form>
+    <div class="card"><h2>Annonces publiées</h2><div id="annList"></div></div>
+  </div>
+</section>
+
+</div></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/common.js"></script>
+<script>
+let students = [], docs = [], anns = [];
+const nameOf = id => (students.find(s => s.id === id) || {}).name || "?";
+const genCode = () => { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; const r = crypto.getRandomValues(new Uint32Array(6)); return [...r].map(x => a[x % a.length]).join(""); };
+
+// ---------- Auth ----------
+async function start() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return;
+  const { data: ok } = await sb.rpc("is_admin");
+  if (!ok) { await sb.auth.signOut(); showMsg($("#loginMsg"), "Ce compte n'a pas les droits d'administration."); return; }
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#logout").classList.remove("hidden");
+  await loadAll();
+}
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("#loginMsg").classList.add("hidden");
+  const { error } = await sb.auth.signInWithPassword({ email: $("#email").value.trim(), password: $("#pwd").value });
+  if (error) return showMsg($("#loginMsg"), "E-mail ou mot de passe incorrect.");
+  start();
+});
+$("#logout").addEventListener("click", async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); });
+
+// ---------- Onglets ----------
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll("[data-panel]").forEach(p => p.classList.toggle("hidden", p.dataset.panel !== b.dataset.tab));
+}));
+function bindTarget(radioName, boxSel) {
+  document.querySelectorAll(`input[name=${radioName}]`).forEach(r => r.addEventListener("change", () =>
+    $(boxSel).classList.toggle("hidden", document.querySelector(`input[name=${radioName}]:checked`).value !== "some")));
+}
+bindTarget("dTarget", "#dChecks"); bindTarget("aTarget", "#aChecks");
+function checksHtml(prefix) {
+  return students.length ? students.map(s => `<label><input type="checkbox" value="${s.id}" class="${prefix}"> ${esc(s.name)}</label>`).join("")
+                         : `<span class="small muted">Ajoutez d'abord des élèves dans l'onglet Élèves.</span>`;
+}
+const checked = cls => [...document.querySelectorAll("." + cls + ":checked")].map(c => c.value);
+
+// ---------- Chargement ----------
+async function loadAll() {
+  const [s, d, a, t] = await Promise.all([
+    sb.from("students").select("*").order("name"),
+    sb.from("documents").select("*").order("created_at", { ascending: false }),
+    sb.from("announcements").select("*").order("created_at", { ascending: false }),
+    sb.from("announcement_targets").select("*"),
+  ]);
+  students = s.data || []; docs = d.data || [];
+  anns = (a.data || []).map(x => ({ ...x, targets: (t.data || []).filter(y => y.announcement_id === x.id).map(y => y.student_id) }));
+  $("#dChecks").innerHTML = checksHtml("dc"); $("#aChecks").innerHTML = checksHtml("ac");
+  const f = $("#docFilter").value;
+  $("#docFilter").innerHTML = `<option value="">Tous les documents</option><option value="__all">Toute la classe</option>` +
+    students.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("#docFilter").value = f;
+  renderStudents(); renderDocs(); renderAnns();
+}
+
+// ---------- Eleves ----------
+function renderStudents() {
+  $("#stList").innerHTML = students.length ? `<table><tr><th>Nom</th><th>Code</th><th>Documents</th><th></th></tr>` +
+    students.map(s => `<tr><td>${esc(s.name)}</td><td><span class="code">${esc(s.code)}</span></td>
+      <td>${docs.filter(d => d.student_id === s.id).length}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn sm ghost" onclick="copyInfo('${s.id}')">Copier l'accès</button>
+        <button class="btn sm ghost" onclick="newCode('${s.id}')">Nouveau code</button>
+        <button class="btn sm danger" onclick="delStudent('${s.id}')">Supprimer</button></td></tr>`).join("") + `</table>`
+    : `<div class="empty">Aucun élève pour le moment.</div>`;
+}
+$("#stForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#stName").value.trim().replace(/\s+/g, " ");
+  if (students.some(s => s.name.toLowerCase() === name.toLowerCase())) return showMsg($("#stMsg"), "Un élève porte déjà ce nom. Ajoutez une initiale pour les distinguer.");
+  const code = genCode();
+  const { error } = await sb.from("students").insert({ name, code });
+  if (error) return showMsg($("#stMsg"), "Erreur : " + error.message);
+  showMsg($("#stMsg"), `${name} ajouté(e). Code : ${code}`, "ok");
+  $("#stName").value = ""; loadAll();
+});
+async function copyInfo(id) {
+  const s = students.find(x => x.id === id);
+  const txt = `Bonjour ${s.name.split(" ")[0]},\nVoici votre accès à l'espace cours :\nLien : https://hamidsiahmed.com/cours.html\nNom : ${s.name}\nCode : ${s.code}`;
+  try { await navigator.clipboard.writeText(txt); alert("Accès copié ! Collez-le dans un message à l'élève."); }
+  catch (e) { prompt("Copiez ce texte :", txt); }
+}
+async function newCode(id) {
+  if (!confirm("Générer un nouveau code ? L'ancien ne fonctionnera plus.")) return;
+  await sb.from("students").update({ code: genCode() }).eq("id", id); loadAll();
+}
+async function delStudent(id) {
+  if (!confirm(`Supprimer ${nameOf(id)} et tous ses documents personnels ?`)) return;
+  for (const d of docs.filter(d => d.student_id === id)) await removeFileIfUnused(d);
+  await sb.from("students").delete().eq("id", id); loadAll();
+}
+
+// ---------- Documents ----------
+const fileInput = $("#file"), drop = $("#drop");
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) { fileInput.files = e.dataTransfer.files; pickFile(); } });
+fileInput.addEventListener("change", pickFile);
+function pickFile() {
+  const f = fileInput.files[0]; $("#fileName").textContent = f ? f.name : "";
+  if (f && !$("#dTitle").value) $("#dTitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+}
+$("#docForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("#docMsg").classList.add("hidden");
+  const f = fileInput.files[0];
+  const all = document.querySelector("input[name=dTarget]:checked").value === "all";
+  const ids = all ? [null] : checked("dc");
+  if (!ids.length) return showMsg($("#docMsg"), "Choisissez au moins un élève.");
+  if (!f && !$("#dComment").value.trim()) return showMsg($("#docMsg"), "Ajoutez un fichier ou un commentaire.");
+  $("#docBtn").disabled = true; $("#docProg").textContent = f ? "Envoi du fichier…" : "";
+  let path = null;
+  if (f) {
+    const safe = f.name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.\-]+/g, "_");
+    path = `${crypto.randomUUID()}/${safe}`;
+    const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || undefined });
+    if (error) { $("#docBtn").disabled = false; $("#docProg").textContent = ""; return showMsg($("#docMsg"), "Erreur d'envoi : " + error.message); }
+  }
+  const rows = ids.map(sid => ({ title: $("#dTitle").value.trim(), comment: $("#dComment").value.trim() || null, file_path: path, file_name: f ? f.name : null, student_id: sid }));
+  const { error } = await sb.from("documents").insert(rows);
+  $("#docBtn").disabled = false; $("#docProg").textContent = "";
+  if (error) return showMsg($("#docMsg"), "Erreur : " + error.message);
+  showMsg($("#docMsg"), all ? "Document envoyé à toute la classe ✔" : `Document envoyé à ${ids.length} élève(s) ✔`, "ok");
+  $("#docForm").reset(); $("#fileName").textContent = ""; $("#dChecks").classList.add("hidden");
+  loadAll();
+});
+function renderDocs() {
+  const f = $("#docFilter").value;
+  const list = docs.filter(d => !f || (f === "__all" ? !d.student_id : d.student_id === f));
+  $("#docList").innerHTML = list.length ? list.map(d => `
+    <div class="doc"><div class="ico">${esc(d.file_name ? ext(d.file_name) : "NOTE")}</div>
+      <div class="body">
+        <div class="row" style="gap:8px"><span class="title">${esc(d.title)}</span>
+          ${d.student_id ? `<span class="badge">${esc(nameOf(d.student_id))}</span>` : `<span class="badge all">Toute la classe</span>`}</div>
+        <div class="small muted">${fmtDate(d.created_at)}${d.file_name ? " · " + esc(d.file_name) : ""}</div>
+        ${d.comment ? `<div class="comment">${esc(d.comment)}</div>` : ""}
+        <div class="row" style="margin-top:10px">
+          ${d.file_path ? `<a class="btn sm ghost" href="${fileUrl(d.file_path)}" target="_blank" rel="noopener">Ouvrir</a>` : ""}
+          <button class="btn sm ghost" onclick="editComment('${d.id}')">Modifier le commentaire</button>
+          <button class="btn sm danger" onclick="delDoc('${d.id}')">Supprimer</button></div>
+      </div></div>`).join("") : `<div class="empty">Aucun document.</div>`;
+}
+$("#docFilter").addEventListener("change", renderDocs);
+async function editComment(id) {
+  const d = docs.find(x => x.id === id);
+  const c = prompt("Commentaire :", d.comment || ""); if (c === null) return;
+  await sb.from("documents").update({ comment: c.trim() || null }).eq("id", id); loadAll();
+}
+async function removeFileIfUnused(d) {
+  if (d.file_path && docs.filter(x => x.file_path === d.file_path).length <= 1)
+    await sb.storage.from(BUCKET).remove([d.file_path]);
+}
+async function delDoc(id) {
+  const d = docs.find(x => x.id === id);
+  if (!confirm(`Supprimer « ${d.title} » ?`)) return;
+  await removeFileIfUnused(d);
+  await sb.from("documents").delete().eq("id", id); loadAll();
+}
+
+// ---------- Annonces ----------
+$("#annForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const all = document.querySelector("input[name=aTarget]:checked").value === "all";
+  const ids = checked("ac");
+  if (!all && !ids.length) return showMsg($("#annMsg"), "Choisissez au moins un élève.");
+  const { data, error } = await sb.from("announcements").insert({ message: $("#annText").value.trim(), for_all: all }).select().single();
+  if (error) return showMsg($("#annMsg"), "Erreur : " + error.message);
+  if (!all) await sb.from("announcement_targets").insert(ids.map(sid => ({ announcement_id: data.id, student_id: sid })));
+  showMsg($("#annMsg"), "Annonce publiée ✔", "ok");
+  $("#annForm").reset(); $("#aChecks").classList.add("hidden"); loadAll();
+});
+function renderAnns() {
+  $("#annList").innerHTML = anns.length ? anns.map(a => `
+    <div class="ann"><div class="row"><div class="date">${fmtDate(a.created_at)} · ${a.for_all ? "Toute la classe" : esc(a.targets.map(nameOf).join(", "))}</div>
+      <div class="spacer"></div><button class="btn sm danger" onclick="delAnn('${a.id}')">Supprimer</button></div>${esc(a.message)}</div>`).join("")
+    : `<div class="empty">Aucune annonce.</div>`;
+}
+async function delAnn(id) { if (!confirm("Supprimer cette annonce ?")) return; await sb.from("announcements").delete().eq("id", id); loadAll(); }
+
+start();
+</script>
+</body>
+</html>

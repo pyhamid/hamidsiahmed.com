@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espace cours · Hamid Si Ahmed</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">Hamid <span>Si Ahmed</span></a>
+  <nav><a href="./">Accueil</a><a href="cours.html" class="active">Espace cours</a></nav>
+</div></header>
+<main><div class="wrap">
+
+  <!-- Connexion -->
+  <section id="login" style="max-width:440px;margin:30px auto 0">
+    <h1>Espace cours</h1>
+    <p class="sub">Entrez votre nom et le code personnel que votre professeur vous a donné.</p>
+    <form id="loginForm" class="card stack">
+      <div><label for="name">Nom et prénom</label><input id="name" type="text" autocomplete="name" required placeholder="ex. Sara Benali"></div>
+      <div><label for="code">Code personnel</label><input id="code" type="text" required placeholder="ex. K7P4QX" style="text-transform:uppercase;letter-spacing:.1em" autocomplete="off"></div>
+      <button class="btn" id="loginBtn" type="submit" style="width:100%;justify-content:center">Accéder à mon espace</button>
+      <div id="loginMsg" class="msg hidden"></div>
+    </form>
+  </section>
+
+  <!-- Espace eleve -->
+  <section id="space" class="hidden">
+    <div class="row" style="margin-bottom:24px">
+      <div><h1 id="hello"></h1><p class="sub" style="margin:0">Vos documents et messages de cours.</p></div>
+      <div class="spacer"></div>
+      <button class="btn ghost" id="logout">Se déconnecter</button>
+    </div>
+    <div id="annBox" class="card hidden" style="margin-bottom:18px">
+      <h2>📢 Messages</h2>
+      <div id="anns"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:14px">
+        <h2 style="margin:0">Mes documents</h2><div class="spacer"></div>
+        <input id="search" type="text" placeholder="Rechercher…" style="max-width:220px">
+      </div>
+      <div id="docs"></div>
+    </div>
+  </section>
+
+</div></main>
+<footer>© <span id="y"></span> Hamid Si Ahmed</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="assets/common.js"></script>
+<script>
+$("#y").textContent = new Date().getFullYear();
+let data = null;
+
+async function login(name, code, silent) {
+  const btn = $("#loginBtn"); btn.disabled = true;
+  const { data: res, error } = await sb.rpc("student_space", { p_name: name, p_code: code });
+  btn.disabled = false;
+  if (error || !res) {
+    if (!silent) showMsg($("#loginMsg"), error ? "Erreur de connexion, réessayez." : "Nom ou code incorrect. Vérifiez l'orthographe de votre nom et votre code.");
+    try { sessionStorage.removeItem("eleve"); } catch (e) {}
+    return;
+  }
+  try { sessionStorage.setItem("eleve", JSON.stringify({ name, code })); } catch (e) {}
+  data = res; render();
+}
+
+function render() {
+  $("#login").classList.add("hidden");
+  $("#space").classList.remove("hidden");
+  $("#hello").textContent = "Bonjour " + data.name.split(" ")[0] + " 👋";
+  const anns = data.announcements || [];
+  $("#annBox").classList.toggle("hidden", !anns.length);
+  $("#anns").innerHTML = anns.map(a => `<div class="ann"><div class="date">${fmtDate(a.created_at)}</div>${esc(a.message)}</div>`).join("");
+  renderDocs();
+}
+
+function renderDocs() {
+  const q = $("#search").value.trim().toLowerCase();
+  const docs = (data.documents || []).filter(d => !q || (d.title + " " + (d.comment || "")).toLowerCase().includes(q));
+  $("#docs").innerHTML = docs.length ? docs.map(d => `
+    <div class="doc">
+      <div class="ico">${esc(ext(d.file_name))}</div>
+      <div class="body">
+        <div class="row" style="gap:8px"><span class="title">${esc(d.title)}</span>${d.for_all ? '<span class="badge all">Toute la classe</span>' : '<span class="badge">Pour vous</span>'}</div>
+        <div class="small muted">${fmtDate(d.created_at)}</div>
+        ${d.comment ? `<div class="comment">${esc(d.comment)}</div>` : ""}
+        ${d.file_path ? `<div class="row" style="margin-top:10px">
+          <a class="btn sm" href="${fileUrl(d.file_path)}" target="_blank" rel="noopener">Ouvrir</a>
+          <a class="btn sm ghost" href="${fileUrl(d.file_path, true)}">Télécharger</a></div>` : ""}
+      </div>
+    </div>`).join("") : `<div class="empty">${q ? "Aucun résultat." : "Aucun document pour le moment."}</div>`;
+}
+
+$("#loginForm").addEventListener("submit", e => {
+  e.preventDefault(); $("#loginMsg").classList.add("hidden");
+  login($("#name").value, $("#code").value);
+});
+$("#search").addEventListener("input", renderDocs);
+$("#logout").addEventListener("click", () => {
+  try { sessionStorage.removeItem("eleve"); } catch (e) {}
+  location.reload();
+});
+try { const s = JSON.parse(sessionStorage.getItem("eleve") || "null"); if (s) login(s.name, s.code, true); } catch (e) {}
+</script>
+</body>
+</html>
