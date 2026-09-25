@@ -190,28 +190,35 @@ function pickFile() {
   const f = fileInput.files[0]; $("#fileName").textContent = f ? f.name : "";
   if (f && !$("#dTitle").value) $("#dTitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
 }
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join(""));
 $("#docForm").addEventListener("submit", async e => {
   e.preventDefault(); $("#docMsg").classList.add("hidden");
-  const f = fileInput.files[0];
-  const all = document.querySelector("input[name=dTarget]:checked").value === "all";
-  const ids = all ? [null] : checked("dc");
-  if (!ids.length) return showMsg($("#docMsg"), "Choisissez au moins un élève.");
-  if (!f && !$("#dComment").value.trim()) return showMsg($("#docMsg"), "Ajoutez un fichier ou un commentaire.");
-  $("#docBtn").disabled = true; $("#docProg").textContent = f ? "Envoi du fichier…" : "";
-  let path = null;
-  if (f) {
-    const safe = f.name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w.\-]+/g, "_");
-    path = `${crypto.randomUUID()}/${safe}`;
-    const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || undefined });
-    if (error) { $("#docBtn").disabled = false; $("#docProg").textContent = ""; return showMsg($("#docMsg"), "Erreur d'envoi : " + error.message); }
+  const btn = $("#docBtn"), prog = $("#docProg");
+  try {
+    const f = fileInput.files[0];
+    const all = document.querySelector("input[name=dTarget]:checked").value === "all";
+    const ids = all ? [null] : checked("dc");
+    if (!ids.length) return showMsg($("#docMsg"), "Choisissez au moins un \u00e9l\u00e8ve.");
+    if (!f && !$("#dComment").value.trim()) return showMsg($("#docMsg"), "Ajoutez un fichier ou un commentaire.");
+    btn.disabled = true; prog.textContent = f ? "Envoi du fichier\u2026" : "";
+    let path = null;
+    if (f) {
+      const safe = f.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.\-]+/g, "_") || "fichier";
+      path = `${uid()}/${safe}`;
+      const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || "application/octet-stream" });
+      if (error) throw new Error("envoi du fichier : " + error.message);
+    }
+    const rows = ids.map(sid => ({ title: $("#dTitle").value.trim(), comment: $("#dComment").value.trim() || null, file_path: path, file_name: f ? f.name : null, student_id: sid }));
+    const { error } = await sb.from("documents").insert(rows);
+    if (error) throw new Error(error.message);
+    showMsg($("#docMsg"), all ? "Document envoy\u00e9 \u00e0 toute la classe \u2714" : `Document envoy\u00e9 \u00e0 ${ids.length} \u00e9l\u00e8ve(s) \u2714`, "ok");
+    $("#docForm").reset(); $("#fileName").textContent = ""; $("#dChecks").classList.add("hidden");
+    loadAll();
+  } catch (err) {
+    showMsg($("#docMsg"), "Erreur " + (err && err.message ? err.message : err));
+  } finally {
+    btn.disabled = false; prog.textContent = "";
   }
-  const rows = ids.map(sid => ({ title: $("#dTitle").value.trim(), comment: $("#dComment").value.trim() || null, file_path: path, file_name: f ? f.name : null, student_id: sid }));
-  const { error } = await sb.from("documents").insert(rows);
-  $("#docBtn").disabled = false; $("#docProg").textContent = "";
-  if (error) return showMsg($("#docMsg"), "Erreur : " + error.message);
-  showMsg($("#docMsg"), all ? "Document envoyé à toute la classe ✔" : `Document envoyé à ${ids.length} élève(s) ✔`, "ok");
-  $("#docForm").reset(); $("#fileName").textContent = ""; $("#dChecks").classList.add("hidden");
-  loadAll();
 });
 function renderDocs() {
   const f = $("#docFilter").value;
