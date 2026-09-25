@@ -5,7 +5,7 @@
 <title>Administration · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=3">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -26,56 +26,134 @@
 </section>
 
 <section id="app" class="hidden">
+  <div id="notifBar" class="msg ok hidden" style="margin:0 0 14px;cursor:pointer"></div>
   <div class="tabs">
-    <button data-tab="docs" class="active">📄 Documents</button>
-    <button data-tab="students">👩‍🎓 Élèves</button>
+    <button data-tab="pub" class="active">➕ Publier</button>
+    <button data-tab="items">📚 Contenus</button>
+    <button data-tab="suivi">✅ Suivi<span id="dotSub"></span></button>
+    <button data-tab="msgs">💬 Messages<span id="dotMsg"></span></button>
+    <button data-tab="students">👩‍🎓 Élèves & groupes</button>
+    <button data-tab="subjects">🗂 Matières</button>
     <button data-tab="anns">📢 Annonces</button>
   </div>
 
-  <!-- DOCUMENTS -->
-  <div data-panel="docs" class="stack">
-    <form id="docForm" class="card stack">
-      <h2>Envoyer un document</h2>
-      <div id="drop" class="drop">📎 Cliquez ou glissez un fichier ici (PDF, image, Word…)<div id="fileName" class="small" style="margin-top:6px;color:var(--text);font-weight:600"></div></div>
-      <input id="file" type="file" class="hidden">
-      <div><label for="dTitle">Titre</label><input id="dTitle" type="text" required placeholder="ex. Chapitre 3 – Exercices corrigés"></div>
-      <div><label for="dComment">Commentaire pour l'élève (facultatif)</label><textarea id="dComment" placeholder="ex. À faire pour jeudi, exercices 1 à 5."></textarea></div>
+  <!-- PUBLIER -->
+  <div data-panel="pub">
+    <form id="pubForm" class="card stack">
+      <div class="row"><h2 style="margin:0">Publier</h2><div class="spacer"></div>
+        <div class="seg" id="kindSeg"><button type="button" data-k="doc" class="active">📄 Document</button><button type="button" data-k="devoir">📝 Devoir</button><button type="button" data-k="qcm">☑️ QCM</button></div></div>
+      <div class="grid2">
+        <div><label>Matière</label><select id="pSubject"></select></div>
+        <div><label>Chapitre</label><select id="pChapter"></select></div>
+      </div>
+      <div class="grid2" style="grid-template-columns:2fr 1fr">
+        <div><label for="pTitle">Titre</label><input id="pTitle" type="text" required placeholder="ex. Chapitre 3 – Exercices corrigés"></div>
+        <div><label for="pLevel">Niveau / classe <span class="muted small">(facultatif)</span></label><input id="pLevel" type="text" placeholder="ex. 3e, Terminale"></div>
+      </div>
+      <div><label for="pComment">Commentaire / consignes (facultatif)</label><textarea id="pComment" placeholder="ex. Faire les exercices 1 à 5."></textarea></div>
+      <div id="pFileBox">
+        <label id="pFileLbl">Fichier (facultatif)</label>
+        <div id="drop" class="drop">📎 Cliquez ou glissez un fichier ici (PDF, image, Word…)<div id="fileName" class="small" style="margin-top:6px;color:var(--text);font-weight:600"></div></div>
+        <input id="file" type="file" class="hidden">
+      </div>
+      <div id="qcmBox" class="hidden stack">
+        <div id="qEdit" class="stack">
+          <div class="row"><label style="margin:0">Collez votre QCM ici</label><div class="spacer"></div><button type="button" class="btn sm ghost" id="qExample">📋 Insérer un exemple</button></div>
+          <textarea id="qText" class="qz-paste" spellcheck="false" placeholder="Q1. Quelle est l'unité de la résistance électrique ?
+A. Volt
+B. Ampère
+C. Ohm
+D. Watt
+Réponse : C
+Explication : (facultatif)"></textarea>
+          <div class="hint">Formats reconnus : questions « Q1. », « 1. », « 1) » ou « Question 1 : » · propositions « A. », « A) », « a) », « (A) » · bonne réponse « Réponse : B », « Bonne réponse : B », plusieurs : « Réponses : A et C » · « Explication : … » facultatif · une grille « Réponses : 1-B, 2-C » en fin de texte marche aussi. Copier-coller depuis ChatGPT, Gemini ou Word : ça fonctionne.</div>
+          <div><button type="button" class="btn" id="qTransform">✨ Transformer en QCM</button></div>
+        </div>
+        <div id="qPrev" class="hidden stack">
+          <div id="qStatus"></div>
+          <div class="row"><div class="seg" id="qPrevSeg"><button type="button" data-v="check" class="active">✔ Vérifier les réponses</button><button type="button" data-v="play">👁 Tester comme un élève</button></div><div class="spacer"></div><button type="button" class="btn sm ghost" id="qBack">✏️ Revenir au texte</button></div>
+          <div id="qPrevBody" class="card"></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div id="dueBox" class="hidden"><label for="pDue">Date limite</label><input id="pDue" type="datetime-local"><div class="hint">Laissez vide si pas de date limite.</div></div>
+        <div><label for="pPub">Publication</label><input id="pPub" type="datetime-local"><div class="hint">Vide = tout de suite. Sinon, visible seulement à partir de cette date.</div></div>
+      </div>
       <div>
         <label>Destinataires</label>
-        <div class="radio"><label><input type="radio" name="dTarget" value="all" checked> Toute la classe</label><label><input type="radio" name="dTarget" value="some"> Élèves choisis</label></div>
-        <div id="dChecks" class="checks hidden"></div>
+        <div class="seg" id="tgtSeg" style="margin-bottom:10px"><button type="button" data-t="all" class="active">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button></div>
+        <div id="tgtBox" class="checks hidden"></div>
       </div>
-      <div class="row"><button class="btn" id="docBtn" type="submit">Envoyer</button><span id="docProg" class="small muted"></span></div>
-      <div id="docMsg" class="msg hidden"></div>
+      <div class="row"><button class="btn" id="pubBtn" type="submit">Publier</button><span id="pubProg" class="small muted"></span></div>
+      <div id="pubMsg" class="msg hidden"></div>
     </form>
+  </div>
+
+  <!-- CONTENUS -->
+  <div data-panel="items" class="hidden">
     <div class="card">
-      <div class="row" style="margin-bottom:10px"><h2 style="margin:0">Documents envoyés</h2><div class="spacer"></div>
-        <select id="docFilter" style="max-width:220px"></select></div>
-      <div id="docList"></div>
+      <div class="row" style="margin-bottom:12px"><h2 style="margin:0">Contenus publiés</h2><div class="spacer"></div>
+        <select id="fSubject" style="max-width:200px"></select>
+        <select id="fKind" style="max-width:160px"><option value="">Tous les types</option><option value="doc">Documents</option><option value="devoir">Devoirs</option><option value="qcm">QCM</option></select>
+        <select id="fStudent" style="max-width:200px"></select></div>
+      <div id="itemList"></div>
     </div>
   </div>
 
-  <!-- ELEVES -->
+  <!-- SUIVI -->
+  <div data-panel="suivi" class="hidden">
+    <div class="card stack">
+      <div class="row"><h2 style="margin:0">Suivi des devoirs & QCM</h2><div class="spacer"></div><select id="sItem" style="max-width:380px"></select></div>
+      <div id="sStats" class="grid3"></div>
+      <div id="sTable"></div>
+    </div>
+  </div>
+
+  <!-- MESSAGES -->
+  <div data-panel="msgs" class="hidden">
+    <div class="grid2 msggrid">
+      <div class="card" style="padding:12px"><div id="convList"></div></div>
+      <div class="card stack">
+        <h2 id="convTitle" style="margin:0">Choisissez un élève</h2>
+        <div id="convThread" class="thread"></div>
+        <form id="replyForm" class="stack hidden"><textarea id="replyText" placeholder="Votre réponse…" required></textarea><div><button class="btn" type="submit">Répondre</button></div></form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ELEVES & GROUPES -->
   <div data-panel="students" class="stack hidden">
-    <form id="stForm" class="card stack">
-      <h2>Ajouter un élève</h2>
-      <div class="row"><input id="stName" type="text" required placeholder="Nom et prénom" style="flex:1;min-width:200px"><button class="btn" type="submit">Ajouter</button></div>
-      <p class="small muted" style="margin:0">Un code personnel est créé automatiquement. Donnez à l'élève son <b>nom exact</b> et son <b>code</b>, avec le lien <b>hamidsiahmed.com/cours.html</b>.</p>
-      <div id="stMsg" class="msg hidden"></div>
-    </form>
-    <div class="card"><h2>Mes élèves</h2><div id="stList"></div></div>
+    <div class="grid2">
+      <form id="stForm" class="card stack">
+        <h2 style="margin:0">Ajouter un élève</h2>
+        <input id="stName" type="text" required placeholder="Nom et prénom">
+        <div id="stGroups" class="checks" style="max-height:120px"></div>
+        <div><button class="btn" type="submit">Ajouter</button></div>
+        <div id="stMsg" class="msg hidden"></div>
+      </form>
+      <form id="grForm" class="card stack">
+        <h2 style="margin:0">Groupes</h2>
+        <div class="row"><input id="grName" type="text" required placeholder="ex. Terminale S – mardi" style="flex:1"><button class="btn" type="submit">Créer</button></div>
+        <div id="grList"></div>
+      </form>
+    </div>
+    <div class="card"><h2>Mes élèves</h2><p class="hint" style="margin-top:-8px">Donnez à chaque élève son <b>nom exact</b>, son <b>code</b> et le lien <b>hamidsiahmed.com/cours.html</b> (bouton « Copier l'accès »).</p><div id="stList"></div></div>
+  </div>
+
+  <!-- MATIERES -->
+  <div data-panel="subjects" class="stack hidden">
+    <form id="subForm" class="card"><div class="row"><input id="subName" type="text" required placeholder="Nouvelle matière (ex. SVT)" style="flex:1"><button class="btn" type="submit">Ajouter la matière</button></div></form>
+    <div id="subList"></div>
   </div>
 
   <!-- ANNONCES -->
   <div data-panel="anns" class="stack hidden">
     <form id="annForm" class="card stack">
-      <h2>Nouvelle annonce</h2>
+      <h2 style="margin:0">Nouvelle annonce</h2>
       <textarea id="annText" required placeholder="ex. Le cours de jeudi est déplacé à vendredi 18h."></textarea>
-      <div>
-        <div class="radio"><label><input type="radio" name="aTarget" value="all" checked> Toute la classe</label><label><input type="radio" name="aTarget" value="some"> Élèves choisis</label></div>
-        <div id="aChecks" class="checks hidden"></div>
-      </div>
-      <div><button class="btn" type="submit">Publier</button></div>
+      <div class="seg" id="aSeg"><button type="button" data-t="all" class="active">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button></div>
+      <div id="aBox" class="checks hidden"></div>
+      <div><button class="btn" type="submit">Publier l'annonce</button></div>
       <div id="annMsg" class="msg hidden"></div>
     </form>
     <div class="card"><h2>Annonces publiées</h2><div id="annList"></div></div>
@@ -85,11 +163,17 @@
 </div></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js"></script>
+<script src="assets/common.js?v=3"></script>
+<script src="assets/qcm.js?v=1"></script>
 <script>
-let students = [], docs = [], anns = [];
-const nameOf = id => (students.find(s => s.id === id) || {}).name || "?";
+const S = { students: [], groups: [], sg: [], subjects: [], chapters: [], items: [], iStu: [], iGrp: [], subs: [], msgs: [], anns: [], aStu: [], aGrp: [] };
+let kind = "doc", tgt = "all", aTgt = "all", conv = null, lastNotif = null;
+const byId = (arr, id) => S[arr].find(x => x.id === id) || {};
+const nameOf = id => byId("students", id).name || "?";
 const genCode = () => { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; const r = crypto.getRandomValues(new Uint32Array(6)); return [...r].map(x => a[x % a.length]).join(""); };
+const toLocalInput = d => { if (!d) return ""; const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
+const fromLocalInput = v => v ? new Date(v).toISOString() : null;
+async function q(p) { const r = await p; if (r.error) throw r.error; return r.data; }
 
 // ---------- Auth ----------
 async function start() {
@@ -99,6 +183,11 @@ async function start() {
   if (!ok) { await sb.auth.signOut(); showMsg($("#loginMsg"), "Ce compte n'a pas les droits d'administration."); return; }
   $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#logout").classList.remove("hidden");
   await loadAll();
+  setInterval(() => loadAll(true), 45000);
+  if ("Notification" in window && Notification.permission === "default") {
+    showMsg($("#notifBar"), "🔔 Cliquez ici pour être prévenu (notification) quand un élève rend un travail ou vous écrit.", "ok");
+    $("#notifBar").onclick = () => { Notification.requestPermission(); $("#notifBar").classList.add("hidden"); };
+  }
 }
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault(); $("#loginMsg").classList.add("hidden");
@@ -108,63 +197,421 @@ $("#loginForm").addEventListener("submit", async e => {
 });
 $("#logout").addEventListener("click", async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); });
 
-// ---------- Onglets ----------
-document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
-  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
-  document.querySelectorAll("[data-panel]").forEach(p => p.classList.toggle("hidden", p.dataset.panel !== b.dataset.tab));
-}));
-function bindTarget(radioName, boxSel) {
-  document.querySelectorAll(`input[name=${radioName}]`).forEach(r => r.addEventListener("change", () =>
-    $(boxSel).classList.toggle("hidden", document.querySelector(`input[name=${radioName}]:checked`).value !== "some")));
-}
-bindTarget("dTarget", "#dChecks"); bindTarget("aTarget", "#aChecks");
-function checksHtml(prefix) {
-  return students.length ? students.map(s => `<label><input type="checkbox" value="${s.id}" class="${prefix}"> ${esc(s.name)}</label>`).join("")
-                         : `<span class="small muted">Ajoutez d'abord des élèves dans l'onglet Élèves.</span>`;
-}
-const checked = cls => [...document.querySelectorAll("." + cls + ":checked")].map(c => c.value);
-
 // ---------- Chargement ----------
-async function loadAll() {
-  const [s, d, a, t] = await Promise.all([
-    sb.from("students").select("*").order("name"),
-    sb.from("documents").select("*").order("created_at", { ascending: false }),
-    sb.from("announcements").select("*").order("created_at", { ascending: false }),
-    sb.from("announcement_targets").select("*"),
-  ]);
-  students = s.data || []; docs = d.data || [];
-  anns = (a.data || []).map(x => ({ ...x, targets: (t.data || []).filter(y => y.announcement_id === x.id).map(y => y.student_id) }));
-  $("#dChecks").innerHTML = checksHtml("dc"); $("#aChecks").innerHTML = checksHtml("ac");
-  const f = $("#docFilter").value;
-  $("#docFilter").innerHTML = `<option value="">Tous les documents</option><option value="__all">Toute la classe</option>` +
-    students.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
-  $("#docFilter").value = f;
-  renderStudents(); renderDocs(); renderAnns();
+async function loadAll(quiet) {
+  try {
+    const r = await Promise.all([
+      q(sb.from("students").select("*").order("name")), q(sb.from("groups").select("*").order("name")), q(sb.from("student_groups").select("*")),
+      q(sb.from("subjects").select("*").order("position").order("name")), q(sb.from("chapters").select("*").order("position").order("created_at")),
+      q(sb.from("items").select("*").order("publish_at", { ascending: false })), q(sb.from("item_students").select("*")), q(sb.from("item_groups").select("*")),
+      q(sb.from("submissions").select("*")), q(sb.from("messages").select("*").order("created_at")),
+      q(sb.from("announcements").select("*").order("created_at", { ascending: false })), q(sb.from("announcement_targets").select("*")), q(sb.from("announcement_groups").select("*")),
+    ]);
+    [S.students, S.groups, S.sg, S.subjects, S.chapters, S.items, S.iStu, S.iGrp, S.subs, S.msgs, S.anns, S.aStu, S.aGrp] = r;
+  } catch (err) { if (!quiet) alert("Erreur de chargement : " + err.message); return; }
+  renderAll();
+}
+function renderAll() {
+  fillSubjectSelects(); renderTargets("#tgtBox", tgt, "t"); renderTargets("#aBox", aTgt, "a");
+  renderItems(); renderSuiviSelect(); renderSuivi(); renderConvs(); renderStudents(); renderGroups(); renderSubjects(); renderAnns(); notifs();
+}
+function notifs() {
+  const nSub = S.subs.filter(s => !s.seen_by_teacher).length, nMsg = S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).length;
+  $("#dotSub").innerHTML = nSub ? `<span class="dot">${nSub}</span>` : "";
+  $("#dotMsg").innerHTML = nMsg ? `<span class="dot">${nMsg}</span>` : "";
+  document.title = (nSub + nMsg ? `(${nSub + nMsg}) ` : "") + "Administration · Hamid Si Ahmed";
+  const key = nSub + ":" + nMsg;
+  if (lastNotif !== null && key !== lastNotif && nSub + nMsg > 0 && "Notification" in window && Notification.permission === "granted") {
+    new Notification("Espace cours", { body: `${nSub} nouveau(x) rendu(s), ${nMsg} message(s) non lu(s)` });
+  }
+  lastNotif = key;
 }
 
-// ---------- Eleves ----------
+// ---------- Onglets / segments ----------
+function showTab(name) {
+  $$(".tabs button").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
+  $$("[data-panel]").forEach(p => p.classList.toggle("hidden", p.dataset.panel !== name));
+  if (name === "suivi") markSeen();
+}
+$$(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+function seg(sel, attr, cb) { $$(sel + " button").forEach(b => b.addEventListener("click", () => { $$(sel + " button").forEach(x => x.classList.toggle("active", x === b)); cb(b.dataset[attr]); })); }
+seg("#kindSeg", "k", k => { kind = k; applyKind(); });
+seg("#tgtSeg", "t", t => { tgt = t; renderTargets("#tgtBox", tgt, "t"); });
+seg("#aSeg", "t", t => { aTgt = t; renderTargets("#aBox", aTgt, "a"); });
+function applyKind() {
+  $("#pubMsg").classList.add("hidden");
+  $("#dueBox").classList.toggle("hidden", kind === "doc");
+  $("#qcmBox").classList.toggle("hidden", kind !== "qcm");
+  $("#pFileLbl").textContent = kind === "devoir" ? "Sujet du devoir (facultatif)" : "Fichier (facultatif)";
+  $("#pubBtn").textContent = kind === "doc" ? "Publier le document" : kind === "devoir" ? "Publier le devoir" : "Publier le QCM";
+}
+function renderTargets(box, mode, prefix) {
+  const el = $(box); el.classList.toggle("hidden", mode === "all");
+  const list = mode === "groups" ? S.groups : S.students;
+  el.innerHTML = list.length ? list.map(x => `<label><input type="checkbox" class="${prefix}chk" value="${x.id}"> ${esc(x.name)}${mode === "groups" ? ` <span class="muted small">(${S.sg.filter(s => s.group_id === x.id).length})</span>` : ""}</label>`).join("")
+    : `<span class="small muted">${mode === "groups" ? "Créez d'abord un groupe (onglet Élèves & groupes)." : "Ajoutez d'abord des élèves."}</span>`;
+}
+const checkedIn = (box, cls) => $$(`${box} .${cls}:checked`).map(c => c.value);
+
+// ---------- Matieres (selects) ----------
+function fillSubjectSelects() {
+  const cur = $("#pSubject").value, curC = $("#pChapter").value;
+  const opts = `<option value="">— Aucune —</option>` + S.subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("#pSubject").innerHTML = opts; $("#pSubject").value = S.subjects.some(s => s.id === cur) ? cur : "";
+  fillChapters(curC);
+  const f = $("#fSubject").value;
+  $("#fSubject").innerHTML = `<option value="">Toutes les matières</option>` + S.subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("#fSubject").value = f;
+  const fs = $("#fStudent").value;
+  $("#fStudent").innerHTML = `<option value="">Tous les élèves</option>` + S.students.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("#fStudent").value = fs;
+}
+function fillChapters(keep) {
+  const sid = $("#pSubject").value;
+  const ch = S.chapters.filter(c => c.subject_id === sid);
+  $("#pChapter").innerHTML = `<option value="">— Général —</option>` + ch.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("") + (sid ? `<option value="__new">➕ Nouveau chapitre…</option>` : "");
+  $("#pChapter").value = ch.some(c => c.id === keep) ? keep : "";
+}
+$("#pSubject").addEventListener("change", () => fillChapters());
+$("#pChapter").addEventListener("change", async () => {
+  if ($("#pChapter").value !== "__new") return;
+  const n = prompt("Nom du nouveau chapitre :"); if (!n || !n.trim()) { $("#pChapter").value = ""; return; }
+  try {
+    const row = await q(sb.from("chapters").insert({ subject_id: $("#pSubject").value, name: n.trim(), position: S.chapters.length }).select().single());
+    S.chapters.push(row); fillChapters(row.id); renderSubjects();
+  } catch (err) { alert("Erreur : " + err.message); $("#pChapter").value = ""; }
+});
+
+// ---------- QCM : texte -> QCM interactif ----------
+let qView = "check";
+function qcmParse(show) {
+  const r = QCM.parse($("#qText").value);
+  if (show) showQcmPreview(r);
+  return r;
+}
+function showQcmPreview(r) {
+  $("#qEdit").classList.add("hidden"); $("#qPrev").classList.remove("hidden");
+  const errs = r.warnings.filter(w => w.level === "err");
+  $("#qStatus").innerHTML = errs.length
+    ? `<div class="qz-warn err"><b>⚠️ ${errs.length} problème(s) à corriger avant de publier :</b><br>${errs.map(w => (w.n ? `Question ${w.n} : ` : "") + esc(w.msg)).join("<br>")}</div>`
+    : `<div class="qz-warn ok"><b>✔ ${r.questions.length} question(s) détectée(s)</b> — vérifiez les bonnes réponses (en vert), puis publiez.</div>`;
+  const body = $("#qPrevBody");
+  if (qView === "play" && r.questions.length && !errs.length) {
+    const play = () => QCM.player(body, r.questions, { preview: true, onFinish: async ans => QCM.result(body, r.questions, ans, { onRetry: play }) });
+    play();
+  } else {
+    body.innerHTML = `<div class="qz-check qz-review" style="margin:0">${r.questions.map((q, k) => {
+      const bad = r.warnings.filter(w => w.n === k + 1);
+      return `<div class="qz-rv ${bad.length ? "ko" : ""}"><div class="small muted">Question ${k + 1}${q.multi ? " · plusieurs réponses" : ""}</div>
+        <div style="font-weight:700;white-space:pre-wrap;margin:2px 0 8px">${esc(q.q) || "<i>énoncé manquant</i>"}</div>
+        ${q.choices.map((c, ci) => `<div class="${q.correct.includes(ci) ? "good" : ""}">${q.correct.includes(ci) ? "✔" : "○"} <b>${QCM.LETTERS[ci]}.</b> ${esc(c)}</div>`).join("")}
+        ${q.explanation ? `<div class="qz-expl">💡 ${esc(q.explanation)}</div>` : ""}
+        ${bad.map(w => `<div class="small" style="color:#c62828;margin-top:6px">⚠️ ${esc(w.msg)}</div>`).join("")}</div>`;
+    }).join("") || `<div class="empty">Aucune question détectée.</div>`}</div>`;
+  }
+}
+$("#qTransform").onclick = () => qcmParse(true);
+$("#qBack").onclick = () => { $("#qPrev").classList.add("hidden"); $("#qEdit").classList.remove("hidden"); $("#qText").focus(); };
+$("#qExample").onclick = () => { if (!$("#qText").value.trim() || confirm("Remplacer le texte actuel par l'exemple ?")) $("#qText").value = QCM.EXAMPLE; };
+seg("#qPrevSeg", "v", v => { qView = v; showQcmPreview(qcmParse(false)); });
+function resetQuiz() { $("#qText").value = ""; $("#qBack").click(); }
+
+// ---------- Publier ----------
+const fileInput = $("#file"), drop = $("#drop");
+drop.addEventListener("click", () => fileInput.click());
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) { fileInput.files = e.dataTransfer.files; pickFile(); } });
+fileInput.addEventListener("change", pickFile);
+function pickFile() {
+  const f = fileInput.files[0]; $("#fileName").textContent = f ? f.name : "";
+  if (f && !$("#pTitle").value) $("#pTitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+}
+async function uploadPublic(f, folder) {
+  const path = `${folder}/${uid()}/${safeName(f.name)}`;
+  await q(sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || "application/octet-stream" }));
+  return path;
+}
+$("#pubForm").addEventListener("submit", async e => {
+  e.preventDefault(); $("#pubMsg").classList.add("hidden");
+  const btn = $("#pubBtn"), prog = $("#pubProg");
+  try {
+    const f = fileInput.files[0];
+    let quiz = null;
+    if (kind === "qcm") {
+      const r = qcmParse(false);
+      if (!r.ok) { showQcmPreview(r); throw new Error("le QCM contient des erreurs (voir l'aperçu ci-dessus)"); }
+      quiz = r.questions;
+    }
+    const ids = tgt === "all" ? [] : checkedIn("#tgtBox", "tchk");
+    if (tgt !== "all" && !ids.length) throw new Error(tgt === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
+    if (kind === "doc" && !f && !$("#pComment").value.trim()) throw new Error("ajoutez un fichier ou un commentaire");
+    btn.disabled = true;
+    let path = null;
+    if (f) { prog.textContent = "Envoi du fichier…"; path = await uploadPublic(f, "docs"); }
+    prog.textContent = "Publication…";
+    const ch = $("#pChapter").value;
+    const item = await q(sb.from("items").insert({
+      kind, title: $("#pTitle").value.trim(), comment: $("#pComment").value.trim() || null, level: $("#pLevel").value.trim() || null,
+      file_path: path, file_name: f ? f.name : null,
+      subject_id: $("#pSubject").value || null, chapter_id: ch && ch !== "__new" ? ch : null,
+      for_all: tgt === "all", publish_at: fromLocalInput($("#pPub").value) || new Date().toISOString(),
+      due_at: kind === "doc" ? null : fromLocalInput($("#pDue").value), quiz,
+    }).select().single());
+    if (tgt === "students") await q(sb.from("item_students").insert(ids.map(s => ({ item_id: item.id, student_id: s }))));
+    if (tgt === "groups") await q(sb.from("item_groups").insert(ids.map(g => ({ item_id: item.id, group_id: g }))));
+    const when = $("#pPub").value ? ` (visible à partir du ${fmtDT(fromLocalInput($("#pPub").value))})` : "";
+    showMsg($("#pubMsg"), `${KIND[kind]} publié ✔${when}`, "ok");
+    $("#pTitle").value = ""; $("#pComment").value = ""; $("#pLevel").value = ""; fileInput.value = ""; $("#fileName").textContent = ""; $("#pDue").value = ""; $("#pPub").value = "";
+    if (kind === "qcm") resetQuiz();
+    await loadAll();
+  } catch (err) {
+    showMsg($("#pubMsg"), "Erreur : " + (err.message || err));
+  } finally { btn.disabled = false; prog.textContent = ""; }
+});
+
+// ---------- Contenus ----------
+function targetsOf(it) {
+  if (it.for_all) return S.students.map(s => s.id);
+  const set = new Set(S.iStu.filter(x => x.item_id === it.id).map(x => x.student_id));
+  S.iGrp.filter(x => x.item_id === it.id).forEach(g => S.sg.filter(s => s.group_id === g.group_id).forEach(s => set.add(s.student_id)));
+  return [...set];
+}
+function targetLabel(it) {
+  if (it.for_all) return `<span class="badge all">Toute la classe</span>`;
+  const g = S.iGrp.filter(x => x.item_id === it.id).map(x => byId("groups", x.group_id).name);
+  const s = S.iStu.filter(x => x.item_id === it.id).map(x => nameOf(x.student_id));
+  return [...g.map(n => `<span class="badge" style="background:#e7f6ee;color:#1b7f4b">👥 ${esc(n)}</span>`), ...s.map(n => `<span class="badge">${esc(n)}</span>`)].join(" ");
+}
+function renderItems() {
+  const fs = $("#fSubject").value, fk = $("#fKind").value, fst = $("#fStudent").value;
+  const list = S.items.filter(i => (!fs || i.subject_id === fs) && (!fk || i.kind === fk) && (!fst || targetsOf(i).includes(fst)));
+  $("#itemList").innerHTML = list.length ? list.map(it => {
+    const sub = byId("subjects", it.subject_id).name, ch = byId("chapters", it.chapter_id).name;
+    const planned = new Date(it.publish_at) > new Date();
+    const nT = targetsOf(it).length, nR = S.subs.filter(s => s.item_id === it.id).length;
+    return `<div class="doc"><div class="ico ${it.kind}">${it.kind === "doc" ? esc(it.file_name ? ext(it.file_name) : "NOTE") : it.kind === "qcm" ? "QCM" : "DEV"}</div>
+      <div class="body">
+        <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span><span class="badge">${KIND[it.kind]}</span>${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${it.kind === "qcm" ? `<span class="small muted">${(it.quiz || []).length} question(s)</span>` : ""}${planned ? `<span class="pill wait">⏰ Planifié · ${fmtDT(it.publish_at)}</span>` : ""}</div>
+        <div class="small muted">${sub ? "📁 " + esc(sub) + (ch ? " › " + esc(ch) : "") + " · " : ""}${fmtDate(it.created_at)}${it.due_at ? " · à rendre avant le " + fmtDT(it.due_at) : ""}</div>
+        <div style="margin-top:6px">${targetLabel(it)}</div>
+        ${it.comment ? `<div class="comment">${esc(it.comment)}</div>` : ""}
+        <div class="row" style="margin-top:10px">
+          ${it.file_path ? `<button class="btn sm ghost" onclick="preview(fileUrl(byId('items','${it.id}').file_path), byId('items','${it.id}').file_name)">👁 Aperçu</button>` : ""}
+          ${it.kind === "qcm" ? `<button class="btn sm ghost" onclick="testQcm('${it.id}')">👁 Tester</button>` : ""}
+          ${it.kind !== "doc" ? `<button class="btn sm" onclick="openSuivi('${it.id}')">✅ Suivi (${nR}/${nT})</button>` : ""}
+          <button class="btn sm ghost" onclick="editItem('${it.id}')">✏️ Modifier</button>
+          <button class="btn sm danger" onclick="delItem('${it.id}')">Supprimer</button></div>
+      </div></div>`;
+  }).join("") : `<div class="empty">Aucun contenu.</div>`;
+}
+["#fSubject", "#fKind", "#fStudent"].forEach(s => $(s).addEventListener("change", renderItems));
+function editItem(id) {
+  const it = byId("items", id);
+  const box = openModal(`<div class="row"><h2 style="margin:0">Modifier</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <form id="edForm" class="stack" style="margin-top:12px">
+      <div class="grid2" style="grid-template-columns:2fr 1fr"><div><label>Titre</label><input id="eTitle" type="text" value="${esc(it.title)}" required></div>
+        <div><label>Niveau / classe</label><input id="eLevel" type="text" value="${esc(it.level || "")}"></div></div>
+      <div><label>Commentaire / consignes</label><textarea id="eComment">${esc(it.comment || "")}</textarea></div>
+      <div class="grid2"><div><label>Matière</label><select id="eSub"><option value="">— Aucune —</option>${S.subjects.map(s => `<option value="${s.id}" ${s.id === it.subject_id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div>
+        <div><label>Chapitre</label><select id="eCh"></select></div></div>
+      <div class="grid2">${it.kind !== "doc" ? `<div><label>Date limite</label><input id="eDue" type="datetime-local" value="${toLocalInput(it.due_at)}"></div>` : ""}
+        <div><label>Visible à partir du</label><input id="ePub" type="datetime-local" value="${toLocalInput(it.publish_at)}"></div></div>
+      <div class="row"><button class="btn" type="submit">Enregistrer</button></div><div id="eMsg" class="msg hidden"></div></form>`);
+  const fillC = () => { const sid = $("#eSub", box).value; $("#eCh", box).innerHTML = `<option value="">— Général —</option>` + S.chapters.filter(c => c.subject_id === sid).map(c => `<option value="${c.id}" ${c.id === it.chapter_id ? "selected" : ""}>${esc(c.name)}</option>`).join(""); };
+  fillC(); $("#eSub", box).onchange = fillC;
+  $("#edForm", box).onsubmit = async e => {
+    e.preventDefault();
+    try {
+      const patch = { title: $("#eTitle", box).value.trim(), level: $("#eLevel", box).value.trim() || null, comment: $("#eComment", box).value.trim() || null, subject_id: $("#eSub", box).value || null,
+        chapter_id: $("#eCh", box).value || null, publish_at: fromLocalInput($("#ePub", box).value) || new Date().toISOString() };
+      if (it.kind !== "doc") patch.due_at = fromLocalInput($("#eDue", box).value);
+      await q(sb.from("items").update(patch).eq("id", id)); closeModal(); loadAll();
+    } catch (err) { showMsg($("#eMsg", box), "Erreur : " + err.message); }
+  };
+}
+async function delItem(id) {
+  const it = byId("items", id);
+  const nR = S.subs.filter(s => s.item_id === id).length;
+  if (!confirm(`Supprimer « ${it.title} » ?${nR ? `\n⚠️ ${nR} rendu(s) d'élèves seront aussi supprimés.` : ""}`)) return;
+  try {
+    const rendus = S.subs.filter(s => s.item_id === id).flatMap(s => (s.files || []).map(f => f.path));
+    if (rendus.length) await sb.storage.from(RENDUS).remove(rendus);
+    const corr = S.subs.filter(s => s.item_id === id && s.corrected_path).map(s => s.corrected_path);
+    if (it.file_path) corr.push(it.file_path);
+    if (corr.length) await sb.storage.from(BUCKET).remove(corr);
+    await q(sb.from("items").delete().eq("id", id)); loadAll();
+  } catch (err) { alert("Erreur : " + err.message); }
+}
+
+// ---------- Suivi ----------
+function renderSuiviSelect() {
+  const cur = $("#sItem").value;
+  const list = S.items.filter(i => i.kind !== "doc");
+  $("#sItem").innerHTML = list.length ? list.map(i => {
+    const n = S.subs.filter(s => s.item_id === i.id && !s.seen_by_teacher).length;
+    return `<option value="${i.id}">${i.kind === "qcm" ? "☑️" : "📝"} ${esc(i.title)}${n ? ` — ${n} nouveau(x)` : ""}</option>`;
+  }).join("") : `<option value="">Aucun devoir</option>`;
+  if (list.some(i => i.id === cur)) $("#sItem").value = cur;
+}
+$("#sItem").addEventListener("change", () => { renderSuivi(); markSeen(); });
+function openSuivi(id) { $("#sItem").value = id; renderSuivi(); showTab("suivi"); }
+async function markSeen() {
+  const id = $("#sItem").value; if (!id) return;
+  if (!S.subs.some(s => s.item_id === id && !s.seen_by_teacher)) return;
+  await sb.from("submissions").update({ seen_by_teacher: true }).eq("item_id", id).eq("seen_by_teacher", false);
+  S.subs.forEach(s => { if (s.item_id === id) s.seen_by_teacher = true; }); notifs(); renderSuiviSelect();
+}
+function renderSuivi() {
+  const it = byId("items", $("#sItem").value);
+  if (!it.id) { $("#sStats").innerHTML = ""; $("#sTable").innerHTML = `<div class="empty">Publiez un devoir ou un QCM pour suivre les rendus.</div>`; return; }
+  const due = it.due_at ? new Date(it.due_at) : null, now = new Date();
+  const rows = targetsOf(it).map(sid => ({ sid, s: S.subs.find(x => x.item_id === it.id && x.student_id === sid) }))
+    .sort((a, b) => nameOf(a.sid).localeCompare(nameOf(b.sid)));
+  const nDone = rows.filter(r => r.s).length, nLate = rows.filter(r => !r.s && due && due < now).length;
+  $("#sStats").innerHTML = `<div class="stat"><span class="small muted">Rendus</span><b>${nDone} / ${rows.length}</b></div>
+    <div class="stat"><span class="small muted">En retard (rien rendu)</span><b style="color:#c62828">${nLate}</b></div>
+    <div class="stat"><span class="small muted">${it.kind === "qcm" ? "Moyenne" : "Corrigés"}</span><b>${it.kind === "qcm"
+      ? (nDone ? (rows.filter(r => r.s).reduce((a, r) => a + (+r.s.score / +r.s.max_score || 0), 0) / nDone * 20).toFixed(1) + " / 20" : "—")
+      : rows.filter(r => r.s && r.s.graded_at).length}</b></div>`;
+  $("#sTable").innerHTML = `<p class="small muted" style="margin:0 0 6px">${it.due_at ? "Date limite : " + fmtDT(it.due_at) : "Pas de date limite"}</p>` + (rows.length ? rows.map(({ sid, s }) => {
+    let st;
+    if (!s) st = due && due < now ? `<span class="pill late">Non rendu · en retard</span>` : `<span class="pill todo">Pas encore rendu</span>`;
+    else if (s.graded_at) st = `<span class="pill graded">Corrigé · ${esc(s.grade || "")}</span>`;
+    else st = `<span class="pill done">${due && new Date(s.submitted_at) > due ? "Rendu en retard" : "Rendu"}</span>`;
+    return `<div class="list-row"><div style="min-width:170px"><b>${esc(nameOf(sid))}</b> ${s && !s.seen_by_teacher ? `<span class="dot">nouveau</span>` : ""}<div class="small muted">${s ? "le " + fmtDT(s.submitted_at) : ""}</div></div>
+      ${st}<div class="spacer"></div>
+      ${s ? (it.kind === "qcm" ? `<b>${s.score}/${s.max_score}</b><button class="btn sm ghost" onclick="viewAnswers('${s.id}')">Voir ses réponses</button>` : "")
+          + (s.files || []).map((f, k) => `<button class="btn sm ghost" onclick="openRendu('${s.id}',${k})">📎 ${esc(f.name.length > 22 ? f.name.slice(0, 20) + "…" : f.name)}</button>`).join("")
+          + `<button class="btn sm" onclick="gradeForm('${s.id}')">${s.graded_at ? "✏️ Modifier la correction" : "🖊 Corriger"}</button>` : ""}
+      </div>`;
+  }).join("") : `<div class="empty">Aucun élève destinataire.</div>`);
+}
+async function openRendu(subId, k) {
+  const s = S.subs.find(x => x.id === subId), f = s.files[k];
+  const { data, error } = await sb.storage.from(RENDUS).createSignedUrl(f.path, 3600);
+  if (error) return alert("Erreur : " + error.message);
+  preview(data.signedUrl, f.name);
+}
+function viewAnswers(subId) {
+  const s = S.subs.find(x => x.id === subId), it = byId("items", s.item_id);
+  const box = openModal(`<div class="row"><h2 style="margin:0">${esc(nameOf(s.student_id))} — ${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div><div id="vaBody" style="margin-top:10px"></div>`, false);
+  QCM.result($("#vaBody", box), it.quiz || [], s.answers || []);
+}
+function testQcm(id) {
+  const it = byId("items", id);
+  const box = openModal(`<div class="row"><h2 style="margin:0">Aperçu élève — ${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div><div id="tqBody" style="margin-top:14px"></div>`);
+  const el = $("#tqBody", box);
+  const play = () => QCM.player(el, it.quiz || [], { preview: true, onFinish: async ans => QCM.result(el, it.quiz || [], ans, { onRetry: play }) });
+  play();
+}
+function gradeForm(subId) {
+  const s = S.subs.find(x => x.id === subId), it = byId("items", s.item_id);
+  const box = openModal(`<div class="row"><h2 style="margin:0">Corriger — ${esc(nameOf(s.student_id))}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small muted">${esc(it.title)} · rendu le ${fmtDT(s.submitted_at)}</p>
+    ${s.note ? `<div class="comment">Message de l'élève : ${esc(s.note)}</div>` : ""}
+    <div class="row" style="margin:10px 0">${(s.files || []).map((f, k) => `<button class="btn sm ghost" onclick="openRendu('${s.id}',${k})">📎 ${esc(f.name)}</button>`).join("")}</div>
+    <form id="gForm" class="stack">
+      <div class="grid2"><div><label>Note</label><input id="gGrade" type="text" placeholder="ex. 15/20" value="${esc(s.grade || "")}"></div></div>
+      <div><label>Commentaire pour l'élève</label><textarea id="gFb" placeholder="ex. Bon travail, attention aux unités.">${esc(s.feedback || "")}</textarea></div>
+      <div><label>Copie corrigée (facultatif)</label><input id="gFile" type="file" accept="application/pdf,image/*">${s.corrected_name ? `<div class="hint">Actuelle : ${esc(s.corrected_name)}</div>` : ""}</div>
+      <div class="row"><button class="btn" id="gBtn" type="submit">Envoyer la correction à l'élève</button></div><div id="gMsg" class="msg hidden"></div></form>`);
+  $("#gForm", box).onsubmit = async e => {
+    e.preventDefault(); $("#gBtn", box).disabled = true;
+    try {
+      const patch = { grade: $("#gGrade", box).value.trim() || null, feedback: $("#gFb", box).value.trim() || null, graded_at: new Date().toISOString(), seen_by_teacher: true };
+      const f = $("#gFile", box).files[0];
+      if (f) {
+        patch.corrected_path = await uploadPublic(f, "corriges"); patch.corrected_name = f.name;
+        if (s.corrected_path) await sb.storage.from(BUCKET).remove([s.corrected_path]);
+      }
+      await q(sb.from("submissions").update(patch).eq("id", s.id)); closeModal(); await loadAll();
+    } catch (err) { showMsg($("#gMsg", box), "Erreur : " + err.message); $("#gBtn", box).disabled = false; }
+  };
+}
+
+// ---------- Messages ----------
+function renderConvs() {
+  const ids = [...new Set(S.msgs.map(m => m.student_id))];
+  ids.sort((a, b) => {
+    const la = S.msgs.filter(m => m.student_id === a).pop(), lb = S.msgs.filter(m => m.student_id === b).pop();
+    return new Date(lb.created_at) - new Date(la.created_at);
+  });
+  $("#convList").innerHTML = (ids.length ? ids.map(id => {
+    const n = S.msgs.filter(m => m.student_id === id && !m.from_teacher && !m.read_by_teacher).length;
+    return `<div class="list-row" style="cursor:pointer;${conv === id ? "font-weight:700;color:var(--accent)" : ""}" onclick="openConv('${id}')">${esc(nameOf(id))}${n ? `<span class="dot">${n}</span>` : ""}</div>`;
+  }).join("") : `<div class="empty small">Aucun message reçu.</div>`)
+  + `<div style="margin-top:10px"><select id="newConv"><option value="">✉️ Écrire à un élève…</option>${S.students.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div>`;
+  $("#newConv").onchange = e => e.target.value && openConv(e.target.value);
+  if (conv) renderThread();
+}
+async function openConv(id) {
+  conv = id; renderConvs(); $("#replyForm").classList.remove("hidden");
+  if (S.msgs.some(m => m.student_id === id && !m.from_teacher && !m.read_by_teacher)) {
+    await sb.from("messages").update({ read_by_teacher: true }).eq("student_id", id).eq("from_teacher", false).eq("read_by_teacher", false);
+    S.msgs.forEach(m => { if (m.student_id === id && !m.from_teacher) m.read_by_teacher = true; }); notifs(); renderConvs();
+  }
+}
+function renderThread() {
+  $("#convTitle").textContent = nameOf(conv);
+  const list = S.msgs.filter(m => m.student_id === conv);
+  $("#convThread").innerHTML = list.length ? list.map(m => `<div class="bubble ${m.from_teacher ? "me" : "them"}">${m.item_id && byId("items", m.item_id).title ? `<div class="meta" style="margin:0 0 4px">À propos de : ${esc(byId("items", m.item_id).title)}</div>` : ""}${esc(m.body)}<div class="meta">${m.from_teacher ? "Moi" : esc(nameOf(m.student_id))} · ${fmtDT(m.created_at)}</div></div>`).join("")
+    : `<div class="empty">Aucun message. Écrivez le premier.</div>`;
+  const t = $("#convThread"); t.scrollTop = t.scrollHeight;
+}
+$("#replyForm").addEventListener("submit", async e => {
+  e.preventDefault(); if (!conv) return;
+  try {
+    const last = S.msgs.filter(m => m.student_id === conv && !m.from_teacher).pop();
+    await q(sb.from("messages").insert({ student_id: conv, item_id: last ? last.item_id : null, from_teacher: true, body: $("#replyText").value.trim(), read_by_teacher: true }));
+    $("#replyText").value = ""; await loadAll();
+  } catch (err) { alert("Erreur : " + err.message); }
+});
+
+// ---------- Eleves & groupes ----------
 function renderStudents() {
-  $("#stList").innerHTML = students.length ? `<table><tr><th>Nom</th><th>Code</th><th>Documents</th><th></th></tr>` +
-    students.map(s => `<tr><td>${esc(s.name)}</td><td><span class="code">${esc(s.code)}</span></td>
-      <td>${docs.filter(d => d.student_id === s.id).length}</td>
+  $("#stGroups").innerHTML = S.groups.length ? S.groups.map(g => `<label><input type="checkbox" class="ngchk" value="${g.id}"> ${esc(g.name)}</label>`).join("") : `<span class="small muted">Pas encore de groupe.</span>`;
+  $("#stList").innerHTML = S.students.length ? `<table><tr><th>Nom</th><th>Code</th><th>Groupes</th><th></th></tr>` +
+    S.students.map(s => `<tr><td>${esc(s.name)}</td><td><span class="code">${esc(s.code)}</span></td>
+      <td>${S.sg.filter(x => x.student_id === s.id).map(x => `<span class="chip">${esc(byId("groups", x.group_id).name)}</span>`).join(" ") || `<span class="muted small">—</span>`}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="btn sm ghost" onclick="copyInfo('${s.id}')">Copier l'accès</button>
-        <button class="btn sm ghost" onclick="newCode('${s.id}')">Nouveau code</button>
+        <button class="btn sm ghost" onclick="copyInfo('${s.id}')">📋 Copier l'accès</button>
+        <button class="btn sm ghost" onclick="editStudent('${s.id}')">✏️ Groupes / nom</button>
+        <button class="btn sm ghost" onclick="newCode('${s.id}')">🔑 Nouveau code</button>
         <button class="btn sm danger" onclick="delStudent('${s.id}')">Supprimer</button></td></tr>`).join("") + `</table>`
     : `<div class="empty">Aucun élève pour le moment.</div>`;
 }
 $("#stForm").addEventListener("submit", async e => {
   e.preventDefault();
   const name = $("#stName").value.trim().replace(/\s+/g, " ");
-  if (students.some(s => s.name.toLowerCase() === name.toLowerCase())) return showMsg($("#stMsg"), "Un élève porte déjà ce nom. Ajoutez une initiale pour les distinguer.");
-  const code = genCode();
-  const { error } = await sb.from("students").insert({ name, code });
-  if (error) return showMsg($("#stMsg"), "Erreur : " + error.message);
-  showMsg($("#stMsg"), `${name} ajouté(e). Code : ${code}`, "ok");
-  $("#stName").value = ""; loadAll();
+  if (S.students.some(s => s.name.toLowerCase() === name.toLowerCase())) return showMsg($("#stMsg"), "Un élève porte déjà ce nom. Ajoutez une initiale pour les distinguer.");
+  try {
+    const code = genCode();
+    const st = await q(sb.from("students").insert({ name, code }).select().single());
+    const gs = checkedIn("#stGroups", "ngchk");
+    if (gs.length) await q(sb.from("student_groups").insert(gs.map(g => ({ student_id: st.id, group_id: g }))));
+    showMsg($("#stMsg"), `${name} ajouté(e). Code : ${code}`, "ok"); $("#stName").value = ""; loadAll();
+  } catch (err) { showMsg($("#stMsg"), "Erreur : " + err.message); }
 });
+function editStudent(id) {
+  const s = byId("students", id);
+  const box = openModal(`<div class="row"><h2 style="margin:0">${esc(s.name)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <form id="esForm" class="stack" style="margin-top:12px"><div><label>Nom</label><input id="esName" type="text" value="${esc(s.name)}" required></div>
+    <div><label>Groupes</label><div class="checks">${S.groups.map(g => `<label><input type="checkbox" class="esg" value="${g.id}" ${S.sg.some(x => x.student_id === id && x.group_id === g.id) ? "checked" : ""}> ${esc(g.name)}</label>`).join("") || `<span class="small muted">Pas encore de groupe.</span>`}</div></div>
+    <div><button class="btn" type="submit">Enregistrer</button></div><div id="esMsg" class="msg hidden"></div></form>`);
+  $("#esForm", box).onsubmit = async e => {
+    e.preventDefault();
+    try {
+      await q(sb.from("students").update({ name: $("#esName", box).value.trim().replace(/\s+/g, " ") }).eq("id", id));
+      await q(sb.from("student_groups").delete().eq("student_id", id));
+      const gs = $$(".esg:checked", box).map(c => c.value);
+      if (gs.length) await q(sb.from("student_groups").insert(gs.map(g => ({ student_id: id, group_id: g }))));
+      closeModal(); loadAll();
+    } catch (err) { showMsg($("#esMsg", box), "Erreur : " + err.message); }
+  };
+}
 async function copyInfo(id) {
-  const s = students.find(x => x.id === id);
+  const s = byId("students", id);
   const txt = `Bonjour ${s.name.split(" ")[0]},\nVoici votre accès à l'espace cours :\nLien : https://hamidsiahmed.com/cours.html\nNom : ${s.name}\nCode : ${s.code}`;
   try { await navigator.clipboard.writeText(txt); alert("Accès copié ! Collez-le dans un message à l'élève."); }
   catch (e) { prompt("Copiez ce texte :", txt); }
@@ -174,105 +621,67 @@ async function newCode(id) {
   await sb.from("students").update({ code: genCode() }).eq("id", id); loadAll();
 }
 async function delStudent(id) {
-  if (!confirm(`Supprimer ${nameOf(id)} et tous ses documents personnels ?`)) return;
-  for (const d of docs.filter(d => d.student_id === id)) await removeFileIfUnused(d);
+  if (!confirm(`Supprimer ${nameOf(id)} ? Ses rendus et messages seront supprimés.`)) return;
+  const rendus = S.subs.filter(s => s.student_id === id).flatMap(s => (s.files || []).map(f => f.path));
+  if (rendus.length) await sb.storage.from(RENDUS).remove(rendus);
   await sb.from("students").delete().eq("id", id); loadAll();
 }
-
-// ---------- Documents ----------
-const fileInput = $("#file"), drop = $("#drop");
-drop.addEventListener("click", () => fileInput.click());
-drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
-drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) { fileInput.files = e.dataTransfer.files; pickFile(); } });
-fileInput.addEventListener("change", pickFile);
-function pickFile() {
-  const f = fileInput.files[0]; $("#fileName").textContent = f ? f.name : "";
-  if (f && !$("#dTitle").value) $("#dTitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+function renderGroups() {
+  $("#grList").innerHTML = S.groups.length ? S.groups.map(g => `<div class="list-row"><b>👥 ${esc(g.name)}</b><span class="small muted">${S.sg.filter(x => x.group_id === g.id).length} élève(s)</span><div class="spacer"></div>
+    <button type="button" class="btn sm ghost" onclick="renameGroup('${g.id}')">Renommer</button><button type="button" class="btn sm danger" onclick="delGroup('${g.id}')">Supprimer</button></div>`).join("")
+    : `<div class="small muted">Aucun groupe. Exemple : « 3e », « Terminale », « Groupe du mardi ».</div>`;
 }
-const uid = () => (crypto.randomUUID ? crypto.randomUUID() : [...crypto.getRandomValues(new Uint8Array(16))].map(b => b.toString(16).padStart(2, "0")).join(""));
-$("#docForm").addEventListener("submit", async e => {
-  e.preventDefault(); $("#docMsg").classList.add("hidden");
-  const btn = $("#docBtn"), prog = $("#docProg");
-  try {
-    const f = fileInput.files[0];
-    const all = document.querySelector("input[name=dTarget]:checked").value === "all";
-    const ids = all ? [null] : checked("dc");
-    if (!ids.length) return showMsg($("#docMsg"), "Choisissez au moins un \u00e9l\u00e8ve.");
-    if (!f && !$("#dComment").value.trim()) return showMsg($("#docMsg"), "Ajoutez un fichier ou un commentaire.");
-    btn.disabled = true; prog.textContent = f ? "Envoi du fichier\u2026" : "";
-    let path = null;
-    if (f) {
-      const safe = f.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.\-]+/g, "_") || "fichier";
-      path = `${uid()}/${safe}`;
-      const { error } = await sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || "application/octet-stream" });
-      if (error) throw new Error("envoi du fichier : " + error.message);
-    }
-    const rows = ids.map(sid => ({ title: $("#dTitle").value.trim(), comment: $("#dComment").value.trim() || null, file_path: path, file_name: f ? f.name : null, student_id: sid }));
-    const { error } = await sb.from("documents").insert(rows);
-    if (error) throw new Error(error.message);
-    showMsg($("#docMsg"), all ? "Document envoy\u00e9 \u00e0 toute la classe \u2714" : `Document envoy\u00e9 \u00e0 ${ids.length} \u00e9l\u00e8ve(s) \u2714`, "ok");
-    $("#docForm").reset(); $("#fileName").textContent = ""; $("#dChecks").classList.add("hidden");
-    loadAll();
-  } catch (err) {
-    showMsg($("#docMsg"), "Erreur " + (err && err.message ? err.message : err));
-  } finally {
-    btn.disabled = false; prog.textContent = "";
-  }
+$("#grForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try { await q(sb.from("groups").insert({ name: $("#grName").value.trim() })); $("#grName").value = ""; loadAll(); } catch (err) { alert("Erreur : " + err.message); }
 });
-function renderDocs() {
-  const f = $("#docFilter").value;
-  const list = docs.filter(d => !f || (f === "__all" ? !d.student_id : d.student_id === f));
-  $("#docList").innerHTML = list.length ? list.map(d => `
-    <div class="doc"><div class="ico">${esc(d.file_name ? ext(d.file_name) : "NOTE")}</div>
-      <div class="body">
-        <div class="row" style="gap:8px"><span class="title">${esc(d.title)}</span>
-          ${d.student_id ? `<span class="badge">${esc(nameOf(d.student_id))}</span>` : `<span class="badge all">Toute la classe</span>`}</div>
-        <div class="small muted">${fmtDate(d.created_at)}${d.file_name ? " · " + esc(d.file_name) : ""}</div>
-        ${d.comment ? `<div class="comment">${esc(d.comment)}</div>` : ""}
-        <div class="row" style="margin-top:10px">
-          ${d.file_path ? `<a class="btn sm ghost" href="${fileUrl(d.file_path)}" target="_blank" rel="noopener">Ouvrir</a>` : ""}
-          <button class="btn sm ghost" onclick="editComment('${d.id}')">Modifier le commentaire</button>
-          <button class="btn sm danger" onclick="delDoc('${d.id}')">Supprimer</button></div>
-      </div></div>`).join("") : `<div class="empty">Aucun document.</div>`;
+async function renameGroup(id) { const n = prompt("Nouveau nom :", byId("groups", id).name); if (n && n.trim()) { await sb.from("groups").update({ name: n.trim() }).eq("id", id); loadAll(); } }
+async function delGroup(id) { if (confirm(`Supprimer le groupe « ${byId("groups", id).name} » ? (les élèves ne sont pas supprimés)`)) { await sb.from("groups").delete().eq("id", id); loadAll(); } }
+
+// ---------- Matieres ----------
+function renderSubjects() {
+  $("#subList").innerHTML = S.subjects.length ? S.subjects.map(s => `<div class="card" style="margin-bottom:12px">
+    <div class="row"><h2 style="margin:0">📁 ${esc(s.name)}</h2><span class="small muted">${S.items.filter(i => i.subject_id === s.id).length} contenu(s)</span><div class="spacer"></div>
+      <button class="btn sm ghost" onclick="renameSubject('${s.id}')">Renommer</button><button class="btn sm danger" onclick="delSubject('${s.id}')">Supprimer</button></div>
+    <div style="margin-top:10px">${S.chapters.filter(c => c.subject_id === s.id).map(c => `<span class="chip">${esc(c.name)} <button title="Renommer" onclick="renameChapter('${c.id}')">✏️</button><button title="Supprimer" onclick="delChapter('${c.id}')">✕</button></span>`).join(" ") || `<span class="small muted">Aucun chapitre.</span>`}</div>
+    <div class="row" style="margin-top:10px"><input type="text" id="nc_${s.id}" placeholder="Nouveau chapitre (ex. Ch. 3 – Fonctions)" style="flex:1"><button class="btn sm" onclick="addChapter('${s.id}')">➕ Ajouter</button></div>
+  </div>`).join("") : `<div class="card empty">Aucune matière.</div>`;
 }
-$("#docFilter").addEventListener("change", renderDocs);
-async function editComment(id) {
-  const d = docs.find(x => x.id === id);
-  const c = prompt("Commentaire :", d.comment || ""); if (c === null) return;
-  await sb.from("documents").update({ comment: c.trim() || null }).eq("id", id); loadAll();
+$("#subForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  try { await q(sb.from("subjects").insert({ name: $("#subName").value.trim(), position: S.subjects.length + 1 })); $("#subName").value = ""; loadAll(); } catch (err) { alert("Erreur : " + err.message); }
+});
+async function addChapter(sid) {
+  const v = $("#nc_" + sid).value.trim(); if (!v) return;
+  try { await q(sb.from("chapters").insert({ subject_id: sid, name: v, position: S.chapters.length })); loadAll(); } catch (err) { alert("Erreur : " + err.message); }
 }
-async function removeFileIfUnused(d) {
-  if (d.file_path && docs.filter(x => x.file_path === d.file_path).length <= 1)
-    await sb.storage.from(BUCKET).remove([d.file_path]);
-}
-async function delDoc(id) {
-  const d = docs.find(x => x.id === id);
-  if (!confirm(`Supprimer « ${d.title} » ?`)) return;
-  await removeFileIfUnused(d);
-  await sb.from("documents").delete().eq("id", id); loadAll();
-}
+async function renameSubject(id) { const n = prompt("Nouveau nom :", byId("subjects", id).name); if (n && n.trim()) { await sb.from("subjects").update({ name: n.trim() }).eq("id", id); loadAll(); } }
+async function delSubject(id) { if (confirm(`Supprimer la matière « ${byId("subjects", id).name} » et ses chapitres ? Les contenus seront rangés dans « Autres ».`)) { await sb.from("subjects").delete().eq("id", id); loadAll(); } }
+async function renameChapter(id) { const n = prompt("Nouveau nom :", byId("chapters", id).name); if (n && n.trim()) { await sb.from("chapters").update({ name: n.trim() }).eq("id", id); loadAll(); } }
+async function delChapter(id) { if (confirm(`Supprimer le chapitre « ${byId("chapters", id).name} » ? Les contenus resteront dans la matière.`)) { await sb.from("chapters").delete().eq("id", id); loadAll(); } }
 
 // ---------- Annonces ----------
 $("#annForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const all = document.querySelector("input[name=aTarget]:checked").value === "all";
-  const ids = checked("ac");
-  if (!all && !ids.length) return showMsg($("#annMsg"), "Choisissez au moins un élève.");
-  const { data, error } = await sb.from("announcements").insert({ message: $("#annText").value.trim(), for_all: all }).select().single();
-  if (error) return showMsg($("#annMsg"), "Erreur : " + error.message);
-  if (!all) await sb.from("announcement_targets").insert(ids.map(sid => ({ announcement_id: data.id, student_id: sid })));
-  showMsg($("#annMsg"), "Annonce publiée ✔", "ok");
-  $("#annForm").reset(); $("#aChecks").classList.add("hidden"); loadAll();
+  try {
+    const ids = aTgt === "all" ? [] : checkedIn("#aBox", "achk");
+    if (aTgt !== "all" && !ids.length) throw new Error("choisissez au moins un destinataire");
+    const a = await q(sb.from("announcements").insert({ message: $("#annText").value.trim(), for_all: aTgt === "all" }).select().single());
+    if (aTgt === "students") await q(sb.from("announcement_targets").insert(ids.map(s => ({ announcement_id: a.id, student_id: s }))));
+    if (aTgt === "groups") await q(sb.from("announcement_groups").insert(ids.map(g => ({ announcement_id: a.id, group_id: g }))));
+    showMsg($("#annMsg"), "Annonce publiée ✔", "ok"); $("#annText").value = ""; loadAll();
+  } catch (err) { showMsg($("#annMsg"), "Erreur : " + err.message); }
 });
 function renderAnns() {
-  $("#annList").innerHTML = anns.length ? anns.map(a => `
-    <div class="ann"><div class="row"><div class="date">${fmtDate(a.created_at)} · ${a.for_all ? "Toute la classe" : esc(a.targets.map(nameOf).join(", "))}</div>
-      <div class="spacer"></div><button class="btn sm danger" onclick="delAnn('${a.id}')">Supprimer</button></div>${esc(a.message)}</div>`).join("")
-    : `<div class="empty">Aucune annonce.</div>`;
+  $("#annList").innerHTML = S.anns.length ? S.anns.map(a => {
+    const who = a.for_all ? "Toute la classe" : [...S.aGrp.filter(x => x.announcement_id === a.id).map(x => "👥 " + byId("groups", x.group_id).name),
+      ...S.aStu.filter(x => x.announcement_id === a.id).map(x => nameOf(x.student_id))].join(", ");
+    return `<div class="ann"><div class="row"><div class="date">${fmtDate(a.created_at)} · ${esc(who)}</div><div class="spacer"></div><button class="btn sm danger" onclick="delAnn('${a.id}')">Supprimer</button></div>${esc(a.message)}</div>`;
+  }).join("") : `<div class="empty">Aucune annonce.</div>`;
 }
 async function delAnn(id) { if (!confirm("Supprimer cette annonce ?")) return; await sb.from("announcements").delete().eq("id", id); loadAll(); }
 
+applyKind();
 start();
 </script>
 </body>

@@ -5,7 +5,7 @@
 <title>Espace cours · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=3">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -14,7 +14,6 @@
 </div></header>
 <main><div class="wrap">
 
-  <!-- Connexion -->
   <section id="login" style="max-width:440px;margin:30px auto 0">
     <h1>Espace cours</h1>
     <p class="sub">Entrez votre nom et le code personnel que votre professeur vous a donné.</p>
@@ -26,23 +25,38 @@
     </form>
   </section>
 
-  <!-- Espace eleve -->
   <section id="space" class="hidden">
-    <div class="row" style="margin-bottom:24px">
-      <div><h1 id="hello"></h1><p class="sub" style="margin:0">Vos documents et messages de cours.</p></div>
+    <div class="row" style="margin-bottom:20px">
+      <div><h1 id="hello"></h1><p class="sub" style="margin:0">Vos cours, devoirs et messages.</p></div>
       <div class="spacer"></div>
       <button class="btn ghost" id="logout">Se déconnecter</button>
     </div>
-    <div id="annBox" class="card hidden" style="margin-bottom:18px">
-      <h2>📢 Messages</h2>
-      <div id="anns"></div>
+    <div id="annBox" class="card hidden" style="margin-bottom:18px"><h2>📢 Annonces</h2><div id="anns"></div></div>
+
+    <div class="tabs">
+      <button data-tab="cours" class="active">📚 Mes cours</button>
+      <button data-tab="devoirs">📝 Devoirs & QCM<span id="dotDev"></span></button>
+      <button data-tab="messages">💬 Messages<span id="dotMsg"></span></button>
     </div>
-    <div class="card">
-      <div class="row" style="margin-bottom:14px">
-        <h2 style="margin:0">Mes documents</h2><div class="spacer"></div>
-        <input id="search" type="text" placeholder="Rechercher…" style="max-width:220px">
+
+    <div data-panel="cours">
+      <div class="row" style="margin-bottom:14px"><input id="search" type="text" placeholder="Rechercher un document…" style="max-width:320px"></div>
+      <div id="folders"></div>
+    </div>
+
+    <div data-panel="devoirs" class="hidden"><div class="card"><div id="devList"></div></div></div>
+
+    <div data-panel="messages" class="hidden">
+      <div class="card stack">
+        <h2 style="margin:0">Discussion avec le professeur</h2>
+        <div id="thread" class="thread"></div>
+        <form id="msgForm" class="stack">
+          <div id="msgAbout" class="small muted hidden"></div>
+          <textarea id="msgText" placeholder="Écrivez votre question…" required></textarea>
+          <div class="row"><button class="btn" type="submit">Envoyer</button><button type="button" id="msgAboutClear" class="btn sm ghost hidden">Question générale</button></div>
+          <div id="msgMsg" class="msg hidden"></div>
+        </form>
       </div>
-      <div id="docs"></div>
     </div>
   </section>
 
@@ -50,11 +64,13 @@
 <footer>© <span id="y"></span> Hamid Si Ahmed</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js"></script>
+<script src="assets/common.js?v=3"></script>
+<script src="assets/qcm.js?v=1"></script>
 <script>
 $("#y").textContent = new Date().getFullYear();
-let data = null;
+let data = null, me = null, aboutItem = null;
 
+// ---------- Connexion ----------
 async function login(name, code, silent) {
   const btn = $("#loginBtn"); btn.disabled = true;
   const { data: res, error } = await sb.rpc("student_space", { p_name: name, p_code: code });
@@ -62,48 +78,216 @@ async function login(name, code, silent) {
   if (error || !res) {
     if (!silent) showMsg($("#loginMsg"), error ? "Erreur de connexion, réessayez." : "Nom ou code incorrect. Vérifiez l'orthographe de votre nom et votre code.");
     try { sessionStorage.removeItem("eleve"); } catch (e) {}
-    return;
+    return false;
   }
-  try { sessionStorage.setItem("eleve", JSON.stringify({ name, code })); } catch (e) {}
-  data = res; render();
+  me = { name, code };
+  try { sessionStorage.setItem("eleve", JSON.stringify(me)); } catch (e) {}
+  data = res; render(); return true;
+}
+const reload = () => login(me.name, me.code, true);
+
+const findItem = id => data.items.find(i => i.id === id);
+function previewItem(id) { const it = findItem(id); preview(fileUrl(it.file_path), it.file_name); }
+function previewCorr(id) { const s = findItem(id).submission; preview(fileUrl(s.corrected_path), s.corrected_name); }
+
+// ---------- Statuts ----------
+function status(it) {
+  const s = it.submission, due = it.due_at ? new Date(it.due_at) : null, now = new Date();
+  if (it.kind === "qcm") {
+    if (s) return { cls: "graded", txt: `Fait · ${s.score}/${s.max_score}` };
+    if (due && due < now) return { cls: "late", txt: "En retard" };
+    return { cls: "todo", txt: "À faire" };
+  }
+  if (it.kind !== "devoir") return null;
+  if (s && s.graded_at) return { cls: "graded", txt: "Corrigé" + (s.grade ? " · " + s.grade : "") };
+  if (s) return { cls: "done", txt: due && new Date(s.submitted_at) > due ? "Rendu en retard" : "Rendu" };
+  if (due && due < now) return { cls: "late", txt: "En retard" };
+  return { cls: "todo", txt: "À rendre" };
 }
 
+// ---------- Rendu ----------
 function render() {
-  $("#login").classList.add("hidden");
-  $("#space").classList.remove("hidden");
+  $("#login").classList.add("hidden"); $("#space").classList.remove("hidden");
   $("#hello").textContent = "Bonjour " + data.name.split(" ")[0] + " 👋";
   const anns = data.announcements || [];
   $("#annBox").classList.toggle("hidden", !anns.length);
   $("#anns").innerHTML = anns.map(a => `<div class="ann"><div class="date">${fmtDate(a.created_at)}</div>${esc(a.message)}</div>`).join("");
-  renderDocs();
+  const todo = data.items.filter(i => (i.kind === "devoir" || i.kind === "qcm") && !i.submission).length;
+  $("#dotDev").innerHTML = todo ? `<span class="dot">${todo}</span>` : "";
+  const unread = data.messages.filter(m => m.from_teacher && !m.read).length;
+  $("#dotMsg").innerHTML = unread ? `<span class="dot">${unread}</span>` : "";
+  renderFolders(); renderDevoirs(); renderThread();
 }
 
-function renderDocs() {
+function itemRow(it) {
+  const st = status(it);
+  const icoTxt = it.kind === "qcm" ? "QCM" : it.kind === "devoir" ? "DEV" : esc(ext(it.file_name) || "NOTE");
+  const due = it.due_at ? `<span class="small ${new Date(it.due_at) < new Date() && !it.submission ? "" : "muted"}">· à rendre avant le ${fmtDT(it.due_at)}</span>` : "";
+  let actions = "";
+  if (it.file_path) actions += `<button class="btn sm" onclick="previewItem('${it.id}')">👁 Aperçu</button>
+    <a class="btn sm ghost" href="${fileUrl(it.file_path, true)}">Télécharger</a>`;
+  if (it.kind === "devoir") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openDevoir('${it.id}')">${it.submission ? "Voir mon rendu" : "📤 Rendre mon travail"}</button>`;
+  if (it.kind === "qcm") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openQcm('${it.id}')">${it.submission ? "Voir ma correction" : "▶ Commencer le QCM"}</button>`;
+  actions += `<button class="btn sm ghost" onclick="askAbout('${it.id}')">💬 Question</button>`;
+  return `<div class="doc">
+    <div class="ico ${it.kind}">${icoTxt}</div>
+    <div class="body">
+      <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span>${it.kind !== "doc" ? `<span class="badge">${KIND[it.kind]}</span>` : ""}${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${st ? `<span class="pill ${st.cls}">${st.txt}</span>` : ""}</div>
+      <div class="small muted">${fmtDate(it.publish_at)} ${due}</div>
+      ${it.comment ? `<div class="comment">${esc(it.comment)}</div>` : ""}
+      <div class="row" style="margin-top:10px">${actions}</div>
+    </div></div>`;
+}
+
+function renderFolders() {
   const q = $("#search").value.trim().toLowerCase();
-  const docs = (data.documents || []).filter(d => !q || (d.title + " " + (d.comment || "")).toLowerCase().includes(q));
-  $("#docs").innerHTML = docs.length ? docs.map(d => `
-    <div class="doc">
-      <div class="ico">${esc(ext(d.file_name))}</div>
-      <div class="body">
-        <div class="row" style="gap:8px"><span class="title">${esc(d.title)}</span>${d.for_all ? '<span class="badge all">Toute la classe</span>' : '<span class="badge">Pour vous</span>'}</div>
-        <div class="small muted">${fmtDate(d.created_at)}</div>
-        ${d.comment ? `<div class="comment">${esc(d.comment)}</div>` : ""}
-        ${d.file_path ? `<div class="row" style="margin-top:10px">
-          <a class="btn sm" href="${fileUrl(d.file_path)}" target="_blank" rel="noopener">Ouvrir</a>
-          <a class="btn sm ghost" href="${fileUrl(d.file_path, true)}">Télécharger</a></div>` : ""}
-      </div>
-    </div>`).join("") : `<div class="empty">${q ? "Aucun résultat." : "Aucun document pour le moment."}</div>`;
+  const items = data.items.filter(i => !q || (i.title + " " + (i.comment || "")).toLowerCase().includes(q));
+  const subs = [...data.subjects, { id: null, name: "Autres" }];
+  const html = subs.map(s => {
+    const inSub = items.filter(i => (i.subject_id || null) === s.id);
+    if (!inSub.length) return "";
+    const chaps = [...data.chapters.filter(c => c.subject_id === s.id), { id: null, name: "Général" }];
+    const inner = chaps.map(c => {
+      const list = inSub.filter(i => (i.chapter_id || null) === c.id);
+      if (!list.length) return "";
+      return `<div class="chap">${esc(c.name)}</div>` + list.map(itemRow).join("");
+    }).join("");
+    return `<details class="folder" ${q || items.length <= 25 ? "open" : ""}><summary>📁 ${esc(s.name)}<span class="count">${inSub.length} élément(s)</span></summary><div class="inner">${inner}</div></details>`;
+  }).join("");
+  $("#folders").innerHTML = html || `<div class="card empty">${q ? "Aucun résultat." : "Aucun document pour le moment."}</div>`;
 }
 
+function renderDevoirs() {
+  const list = data.items.filter(i => i.kind === "devoir" || i.kind === "qcm")
+    .sort((a, b) => (!!a.submission - !!b.submission) || (new Date(a.due_at || "2999") - new Date(b.due_at || "2999")));
+  $("#devList").innerHTML = list.length ? list.map(itemRow).join("") : `<div class="empty">Aucun devoir pour le moment. 🎉</div>`;
+}
+
+function renderThread() {
+  const msgs = data.messages;
+  const title = id => (data.items.find(i => i.id === id) || {}).title;
+  $("#thread").innerHTML = msgs.length ? msgs.map(m => `<div class="bubble ${m.from_teacher ? "them" : "me"}">
+      ${m.item_id && title(m.item_id) ? `<div class="meta" style="margin:0 0 4px">À propos de : ${esc(title(m.item_id))}</div>` : ""}${esc(m.body)}
+      <div class="meta">${m.from_teacher ? "Professeur" : "Moi"} · ${fmtDT(m.created_at)}</div></div>`).join("")
+    : `<div class="empty">Pas encore de message. Posez votre question ci-dessous.</div>`;
+  const t = $("#thread"); t.scrollTop = t.scrollHeight;
+}
+
+// ---------- Onglets ----------
+function showTab(name) {
+  $$(".tabs button").forEach(x => x.classList.toggle("active", x.dataset.tab === name));
+  $$("[data-panel]").forEach(p => p.classList.toggle("hidden", p.dataset.panel !== name));
+  if (name === "messages" && data.messages.some(m => m.from_teacher && !m.read)) {
+    sb.rpc("student_read_messages", { p_name: me.name, p_code: me.code }).then(() => { data.messages.forEach(m => m.read = true); $("#dotMsg").innerHTML = ""; });
+  }
+}
+$$(".tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+$("#search").addEventListener("input", renderFolders);
+
+// ---------- Messages ----------
+function askAbout(id) {
+  aboutItem = id; const it = data.items.find(i => i.id === id);
+  $("#msgAbout").textContent = "À propos de : " + it.title; $("#msgAbout").classList.remove("hidden");
+  $("#msgAboutClear").classList.remove("hidden");
+  closeModal(); showTab("messages"); $("#msgText").focus();
+}
+$("#msgAboutClear").addEventListener("click", () => { aboutItem = null; $("#msgAbout").classList.add("hidden"); $("#msgAboutClear").classList.add("hidden"); });
+$("#msgForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const { error } = await sb.rpc("student_message", { p_name: me.name, p_code: me.code, p_item: aboutItem, p_body: $("#msgText").value });
+  if (error) return showMsg($("#msgMsg"), "Erreur : " + error.message);
+  $("#msgText").value = ""; $("#msgAboutClear").click(); $("#msgMsg").classList.add("hidden");
+  await reload(); showTab("messages");
+});
+
+// ---------- Devoir : rendu ----------
+function openDevoir(id) {
+  const it = data.items.find(i => i.id === id), s = it.submission, st = status(it);
+  const graded = s && s.graded_at;
+  const box = openModal(`
+    <div class="row"><h2 style="margin:0">${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small muted" style="margin:6px 0 14px">${it.due_at ? "À rendre avant le " + fmtDT(it.due_at) : "Pas de date limite"} · <span class="pill ${st.cls}">${st.txt}</span></p>
+    ${it.comment ? `<div class="comment" style="margin-bottom:14px">${esc(it.comment)}</div>` : ""}
+    ${graded ? `<div class="card" style="background:#faf7ff;border-color:#e6dafb;margin-bottom:14px">
+        <div class="row"><div><div class="small muted">Note</div><div class="grade">${esc(s.grade || "—")}</div></div></div>
+        ${s.feedback ? `<div class="comment" style="margin-top:10px">${esc(s.feedback)}</div>` : ""}
+        ${s.corrected_path ? `<div class="row" style="margin-top:10px"><button class="btn sm" onclick="previewCorr('${it.id}')">👁 Voir ma copie corrigée</button>
+          <a class="btn sm ghost" href="${fileUrl(s.corrected_path, true)}">Télécharger</a></div>` : ""}
+      </div>` : ""}
+    ${s ? `<p class="small">Rendu le ${fmtDT(s.submitted_at)} : ${s.files.map(f => "📎 " + esc(f.name)).join(", ") || "—"}${s.note ? `<br>Mon message : « ${esc(s.note)} »` : ""}</p>` : ""}
+    ${graded ? "" : `<form id="rendForm" class="stack">
+      <h2 style="margin:6px 0 0;font-size:1.05rem">${s ? "Remplacer mon rendu" : "Rendre mon travail"}</h2>
+      <div id="rDrop" class="drop">📎 Choisissez vos fichiers (PDF ou photos de votre copie)<div id="rNames" class="small" style="margin-top:6px;color:var(--text);font-weight:600"></div></div>
+      <input id="rFiles" type="file" multiple accept="application/pdf,image/*" class="hidden">
+      <textarea id="rNote" placeholder="Un message pour le professeur (facultatif)"></textarea>
+      <div class="row"><button class="btn" id="rBtn" type="submit">📤 Envoyer mon travail</button><span id="rProg" class="small muted"></span></div>
+      <div id="rMsg" class="msg hidden"></div></form>`}
+    <div class="row" style="margin-top:12px"><button class="btn sm ghost" onclick="askAbout('${it.id}')">💬 Poser une question sur ce devoir</button></div>`);
+  if (graded) return;
+  const inp = $("#rFiles", box), drop = $("#rDrop", box);
+  const names = () => $("#rNames", box).textContent = [...inp.files].map(f => f.name).join(", ");
+  drop.addEventListener("click", () => inp.click());
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); inp.files = e.dataTransfer.files; names(); });
+  inp.addEventListener("change", names);
+  $("#rendForm", box).addEventListener("submit", async e => {
+    e.preventDefault();
+    const files = [...inp.files];
+    if (!files.length) return showMsg($("#rMsg", box), "Ajoutez au moins un fichier.");
+    if (files.some(f => f.size > 20 * 1024 * 1024)) return showMsg($("#rMsg", box), "Un fichier dépasse 20 Mo.");
+    const btn = $("#rBtn", box); btn.disabled = true;
+    try {
+      const out = [];
+      for (let k = 0; k < files.length; k++) {
+        const f = files[k];
+        $("#rProg", box).textContent = `Envoi ${k + 1}/${files.length}…`;
+        const { data: path, error: e1 } = await sb.rpc("student_upload_slot", { p_name: me.name, p_code: me.code, p_item: it.id, p_filename: safeName(f.name) });
+        if (e1) throw e1;
+        const { error: e2 } = await sb.storage.from(RENDUS).upload(path, f, { contentType: f.type || "application/octet-stream" });
+        if (e2) throw e2;
+        out.push({ path, name: f.name });
+      }
+      const { error: e3 } = await sb.rpc("student_submit", { p_name: me.name, p_code: me.code, p_item: it.id, p_files: out, p_note: $("#rNote", box).value });
+      if (e3) throw e3;
+      await reload(); openDevoir(it.id);
+      const ok = document.createElement("div"); ok.className = "msg ok"; ok.textContent = "Travail envoyé ✔ Le professeur a été prévenu.";
+      const mb = $("#modal .modal-box"); if (mb) mb.insertBefore(ok, mb.children[1]);
+    } catch (err) {
+      showMsg($("#rMsg", box), "Erreur : " + (err.message || err));
+    } finally { btn.disabled = false; const p = $("#rProg", box); if (p) p.textContent = ""; }
+  });
+}
+
+// ---------- QCM ----------
+function openQcm(id) {
+  const it = findItem(id), s = it.submission, quiz = it.quiz || [];
+  const box = openModal(`
+    <div class="row" style="align-items:flex-start"><div><h2 style="margin:0">${esc(it.title)}</h2>
+      <div class="small muted">${quiz.length} question(s)${it.level ? " · " + esc(it.level) : ""}${it.due_at ? " · à faire avant le " + fmtDT(it.due_at) : ""}</div></div>
+      <div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    ${it.comment ? `<div class="comment" style="margin-top:10px">${esc(it.comment)}</div>` : ""}
+    ${s ? "" : `<p class="hint" style="margin:10px 0 0">Une seule tentative. Vous pouvez revenir sur vos réponses avant de cliquer sur « Terminer ».</p>`}
+    <div id="qzBody" style="margin-top:16px"></div>`, "qcmbox");
+  const el = $("#qzBody", box);
+  if (s) { QCM.result(el, quiz, s.answers || []); return; }
+  QCM.player(el, quiz, {
+    onFinish: async answers => {
+      const { error } = await sb.rpc("student_submit_quiz", { p_name: me.name, p_code: me.code, p_item: it.id, p_answers: answers });
+      if (error) throw new Error(error.message);
+      await reload();
+      const fresh = findItem(id);
+      QCM.result(el, fresh.quiz || [], fresh.submission ? fresh.submission.answers : answers);
+    }
+  });
+}
+
+// ---------- Demarrage ----------
 $("#loginForm").addEventListener("submit", e => {
   e.preventDefault(); $("#loginMsg").classList.add("hidden");
   login($("#name").value, $("#code").value);
 });
-$("#search").addEventListener("input", renderDocs);
-$("#logout").addEventListener("click", () => {
-  try { sessionStorage.removeItem("eleve"); } catch (e) {}
-  location.reload();
-});
+$("#logout").addEventListener("click", () => { try { sessionStorage.removeItem("eleve"); } catch (e) {} location.reload(); });
 try { const s = JSON.parse(sessionStorage.getItem("eleve") || "null"); if (s) login(s.name, s.code, true); } catch (e) {}
 </script>
 </body>
