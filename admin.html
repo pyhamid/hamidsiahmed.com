@@ -5,7 +5,7 @@
 <title>Administration · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=4">
+<link rel="stylesheet" href="assets/style.css?v=5">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -31,7 +31,8 @@
     <button data-tab="dash" class="active">🏠 Tableau de bord</button>
     <button data-tab="seances">📅 Séances</button>
     <button data-tab="pub">➕ Publier</button>
-    <button data-tab="items">📚 Contenus</button>
+    <button data-tab="items">📋 Contenus</button>
+    <button data-tab="lib">📚 Bibliothèque</button>
     <button data-tab="suivi">✅ Suivi<span id="dotSub"></span></button>
     <button data-tab="msgs">💬 Messages<span id="dotMsg"></span></button>
     <button data-tab="students">👩‍🎓 Élèves & groupes</button>
@@ -103,9 +104,15 @@
       </div>
       <div><label for="pComment">Commentaire / consignes (facultatif)</label><textarea id="pComment" placeholder="ex. Faire les exercices 1 à 5."></textarea></div>
       <div id="pFileBox">
-        <label id="pFileLbl">Fichier (facultatif)</label>
-        <div id="drop" class="drop">📎 Cliquez ou glissez un fichier ici (PDF, image, Word…)<div id="fileName" class="small" style="margin-top:6px;color:var(--text);font-weight:600"></div></div>
-        <input id="file" type="file" class="hidden">
+        <label id="pFileLbl">Fichiers (facultatif)</label>
+        <div id="attList" class="att-list"></div>
+        <div class="row" style="align-items:stretch">
+          <div id="drop" class="drop" style="flex:1;min-width:220px;padding:14px">📎 Nouveau fichier : cliquez ou glissez ici</div>
+          <button type="button" class="btn ghost" id="pickLib">📚 Choisir dans la bibliothèque</button>
+        </div>
+        <input id="file" type="file" multiple class="hidden">
+        <div class="row" style="margin-top:6px"><label class="inline small"><input type="checkbox" id="pComp" checked style="width:auto"> Optimiser les photos (si ça réduit vraiment la taille)</label></div>
+        <div class="hint" id="attHint">Un nouveau fichier est rangé dans la bibliothèque. S'il y est déjà, il est réutilisé : jamais de copie.</div>
       </div>
       <div id="qcmBox" class="hidden stack">
         <div id="qEdit" class="stack">
@@ -137,13 +144,16 @@ Puissance électrique → P = U × I"></textarea>
       <div class="grid2">
         <div id="dueBox" class="hidden"><label for="pDue">Date limite</label><input id="pDue" type="datetime-local"><div class="hint">Laissez vide si pas de date limite.</div></div>
         <div><label for="pPub">Publication</label><input id="pPub" type="datetime-local"><div class="hint">Vide = tout de suite. Sinon, visible seulement à partir de cette date.</div></div>
+        <div id="closeBox" class="hidden"><label for="pClose">Fin de la période de réponse <span class="muted small">(facultatif)</span></label><input id="pClose" type="datetime-local">
+          <label class="inline small" style="margin-top:6px"><input type="checkbox" id="pHide" style="width:auto"> Faire disparaître le QCM chez les élèves à la fin</label>
+          <div class="hint">Après la fin, plus personne ne peut faire la 1re tentative. Sinon le QCM reste visible (« Terminé ») avec les corrections.</div></div>
       </div>
       <div>
         <label>Destinataires</label>
         <div class="seg" id="tgtSeg" style="margin-bottom:10px"><button type="button" data-t="all" class="active">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button></div>
         <div id="tgtBox" class="checks hidden"></div>
       </div>
-      <div class="row"><button class="btn" id="pubBtn" type="submit">Publier</button><span id="pubProg" class="small muted"></span></div>
+      <div class="row"><button class="btn" id="pubBtn" type="submit">Publier</button><button class="btn ghost" id="draftBtn" type="button" title="Sauvegardé dans Contenus, invisible pour les élèves : vous le publierez plus tard">💾 Enregistrer comme brouillon</button><span id="pubProg" class="small muted"></span></div>
       <div id="pubMsg" class="msg hidden"></div>
     </form>
   </div>
@@ -151,11 +161,35 @@ Puissance électrique → P = U × I"></textarea>
   <!-- CONTENUS -->
   <div data-panel="items" class="hidden">
     <div class="card">
-      <div class="row" style="margin-bottom:12px"><h2 style="margin:0">Contenus publiés</h2><div class="spacer"></div>
+      <div class="row" style="margin-bottom:12px"><h2 style="margin:0">Contenus</h2><div class="spacer"></div>
         <select id="fSubject" style="max-width:200px"></select>
-        <select id="fKind" style="max-width:160px"><option value="">Tous les types</option><option value="doc">Documents</option><option value="devoir">Devoirs</option><option value="qcm">QCM</option></select>
-        <select id="fStudent" style="max-width:200px"></select></div>
+        <select id="fKind" style="max-width:160px"><option value="">Tous les types</option><option value="doc">Documents</option><option value="devoir">Devoirs</option><option value="qcm">QCM</option><option value="memo">À retenir</option></select>
+        <select id="fStudent" style="max-width:200px"></select>
+        <select id="fStatus" style="max-width:170px"><option value="">Tous les statuts</option><option value="draft">✏️ Brouillons</option><option value="planned">⏰ Programmés</option><option value="live">🟢 En ligne</option><option value="ended">🏁 Terminés</option><option value="archived">🗄 Archivés</option></select></div>
       <div id="itemList"></div>
+    </div>
+  </div>
+
+  <!-- BIBLIOTHEQUE -->
+  <div data-panel="lib" class="stack hidden">
+    <div class="card stack">
+      <div class="row"><h2 style="margin:0">📚 Bibliothèque</h2><div class="spacer"></div><div id="libUsage" class="small muted"></div></div>
+      <p class="hint" style="margin:0">Chaque fichier est stocké <b>une seule fois</b>. Vous le donnez ensuite à autant d'élèves et de contenus que vous voulez, sans le renvoyer. Un fichier déjà présent est reconnu automatiquement.</p>
+      <div id="libDrop" class="drop">📎 Cliquez ou glissez des fichiers ici pour les ajouter à la bibliothèque</div>
+      <input id="libFile" type="file" multiple class="hidden">
+      <div class="grid3">
+        <div><label>Matière</label><select id="lSub"></select></div>
+        <div><label>Chapitre</label><select id="lCh"></select></div>
+        <div><label>&nbsp;</label><label class="inline"><input type="checkbox" id="lComp" checked style="width:auto"> Optimiser les photos</label></div>
+      </div>
+      <div id="libMsg"></div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:6px"><input id="lSearch" type="text" placeholder="Rechercher un fichier…" style="max-width:260px">
+        <select id="lFSub" style="max-width:200px"></select>
+        <select id="lFUse" style="max-width:220px"><option value="">Tous les fichiers</option><option value="unused">Non utilisés</option><option value="corr">Copies corrigées</option></select></div>
+      <p class="hint" style="margin:0 0 4px">Cliquez sur le nom d'un élève pour lui donner (❌ → ✅) ou lui retirer (✅ → ❌) l'accès. Retirer un accès ne supprime jamais le fichier.</p>
+      <div id="libList"></div>
     </div>
   </div>
 
@@ -222,12 +256,13 @@ Puissance électrique → P = U × I"></textarea>
 </div></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js?v=4"></script>
-<script src="assets/qcm.js?v=2"></script>
+<script src="assets/common.js?v=5"></script>
+<script src="assets/qcm.js?v=3"></script>
 <script>
 const S = { students: [], groups: [], sg: [], subjects: [], chapters: [], items: [], iStu: [], iGrp: [], subs: [], msgs: [], anns: [], aStu: [], aGrp: [],
-  sessions: [], sStu: [], views: [], memo: [], attempts: [], settings: [] };
+  sessions: [], sStu: [], views: [], memo: [], attempts: [], settings: [], res: [], iRes: [], rStu: [] };
 KIND.memo = "Fiche à retenir";
+const KICO = { doc: "📄", devoir: "📝", qcm: "☑️", memo: "🧠" };
 const setting = (k, d) => { const r = S.settings.find(x => x.key === k); return r ? r.value : d; };
 const hm = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 const dayLbl = d => { const x = new Date(d), t = new Date(); const k = Math.round((new Date(x.toDateString()) - new Date(t.toDateString())) / 864e5);
@@ -275,17 +310,18 @@ async function loadAll(quiet) {
       q(sb.from("submissions").select("*")), q(sb.from("messages").select("*").order("created_at")),
       q(sb.from("announcements").select("*").order("created_at", { ascending: false })), q(sb.from("announcement_targets").select("*")), q(sb.from("announcement_groups").select("*")),
       q(sb.from("sessions").select("*").order("starts_at")), q(sb.from("session_students").select("*")), q(sb.from("item_views").select("*")),
-      q(sb.from("memo_progress").select("*")), q(sb.from("quiz_attempts").select("item_id,student_id,score,max_score,created_at")), q(sb.from("settings").select("*")),
+      q(sb.from("memo_progress").select("*")), q(sb.from("quiz_attempts").select("*")), q(sb.from("settings").select("*")),
+      q(sb.from("resources").select("*").order("created_at", { ascending: false })), q(sb.from("item_resources").select("*")), q(sb.from("resource_students").select("*")),
     ]);
     [S.students, S.groups, S.sg, S.subjects, S.chapters, S.items, S.iStu, S.iGrp, S.subs, S.msgs, S.anns, S.aStu, S.aGrp,
-     S.sessions, S.sStu, S.views, S.memo, S.attempts, S.settings] = r;
+     S.sessions, S.sStu, S.views, S.memo, S.attempts, S.settings, S.res, S.iRes, S.rStu] = r;
   } catch (err) { if (!quiet) alert("Erreur de chargement : " + err.message); return; }
   renderAll();
 }
 function renderAll() {
   fillSubjectSelects(); renderTargets("#tgtBox", tgt, "t"); renderTargets("#aBox", aTgt, "a");
   renderItems(); renderSuiviSelect(); renderSuivi(); renderConvs(); renderStudents(); renderGroups(); renderSubjects(); renderAnns(); notifs();
-  renderDash(); renderSessAdmin(); fillSessForm(); fillSessionSelect();
+  renderDash(); renderSessAdmin(); fillSessForm(); fillSessionSelect(); fillLibSelects(); renderLib(); attEd.draw();
 }
 function notifs() {
   const nSub = S.subs.filter(s => !s.seen_by_teacher).length, nMsg = S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).length;
@@ -315,9 +351,12 @@ function applyKind() {
   $("#dueBox").classList.toggle("hidden", kind === "doc");
   $("#qcmBox").classList.toggle("hidden", kind !== "qcm");
   $("#memoBox").classList.toggle("hidden", kind !== "memo");
-  $("#dueBox").classList.toggle("hidden", kind === "doc" || kind === "memo");
+  $("#dueBox").classList.toggle("hidden", kind !== "devoir");
+  $("#closeBox").classList.toggle("hidden", kind !== "qcm");
   $("#pFileLbl").textContent = kind === "devoir" ? "Sujet du devoir (facultatif)" : kind === "memo" ? "Fiche à retenir : PDF, photo d'un tableau… (facultatif)" : "Fichier (facultatif)";
   $("#pubBtn").textContent = { doc: "Publier le document", devoir: "Publier le devoir", qcm: "Publier le QCM", memo: "Publier la fiche à retenir" }[kind];
+  $("#pFileLbl").textContent = kind === "devoir" ? "Fichiers : sujet, et éventuellement la correction (facultatif)" : kind === "qcm" ? "Fichiers : correction détaillée, document… (facultatif)" : kind === "memo" ? "Fiche à retenir : PDF, photo d'un tableau… (facultatif)" : "Fichiers (facultatif)";
+  attEd.draw();
 }
 function renderTargets(box, mode, prefix) {
   const el = $(box); el.classList.toggle("hidden", mode === "all");
@@ -349,7 +388,8 @@ function fillChapters(keep) {
 $("#pSubject").addEventListener("change", () => fillChapters());
 $("#pChapter").addEventListener("change", async () => {
   if ($("#pChapter").value !== "__new") return;
-  const n = prompt("Nom du nouveau chapitre :"); if (!n || !n.trim()) { $("#pChapter").value = ""; return; }
+  const n = prompt(`Nom du nouveau chapitre (dans ${byId("subjects", $("#pSubject").value).name}) :`); if (!n || !n.trim()) { $("#pChapter").value = ""; return; }
+  const ex = chapExists($("#pSubject").value, n); if (ex) { fillChapters(ex.id); return; }
   try {
     const row = await q(sb.from("chapters").insert({ subject_id: $("#pSubject").value, name: n.trim(), position: S.chapters.length }).select().single());
     S.chapters.push(row); fillChapters(row.id); renderSubjects();
@@ -394,26 +434,26 @@ seg("#qPrevSeg", "v", v => { qView = v; showQcmPreview(qcmParse(false)); });
 function resetQuiz() { $("#qText").value = ""; $("#qBack").click(); }
 
 // ---------- Publier ----------
-const fileInput = $("#file"), drop = $("#drop");
-drop.addEventListener("click", () => fileInput.click());
-drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
-drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) { fileInput.files = e.dataTransfer.files; pickFile(); } });
-fileInput.addEventListener("change", pickFile);
-function pickFile() {
-  const f = fileInput.files[0]; $("#fileName").textContent = f ? f.name : "";
-  if (f && !$("#pTitle").value) $("#pTitle").value = f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
-}
-async function uploadPublic(f, folder) {
-  const path = `${folder}/${uid()}/${safeName(f.name)}`;
-  await q(sb.storage.from(BUCKET).upload(path, f, { contentType: f.type || "application/octet-stream" }));
-  return path;
-}
+const fileInput = $("#file");
+const attEd = attEditor($("#attList"), [], { roles: () => kind === "devoir" || kind === "qcm" });
+dropZone($("#drop"), fileInput, files => {
+  attEd.addFiles(files);
+  if (files[0] && !$("#pTitle").value) $("#pTitle").value = files[0].name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+});
+$("#pickLib").onclick = () => pickFromLibrary({ multi: true, exclude: attEd.list.filter(a => a.res).map(a => a.res), onPick: ids => {
+  attEd.addRes(ids);
+  const r = byId("res", ids[0]);
+  if (r.id && !$("#pTitle").value) $("#pTitle").value = r.name;
+  if (r.subject_id && !$("#pSubject").value) { $("#pSubject").value = r.subject_id; fillChapters(r.chapter_id); }
+} });
+let asDraft = false;
+$("#draftBtn").onclick = () => { asDraft = true; $("#pubForm").requestSubmit ? $("#pubForm").requestSubmit() : $("#pubBtn").click(); };
 $("#pubForm").addEventListener("submit", async e => {
   e.preventDefault(); $("#pubMsg").classList.add("hidden");
+  const draft = asDraft; asDraft = false;
   const btn = $("#pubBtn"), prog = $("#pubProg");
   try {
-    const f = fileInput.files[0];
+    const hasFiles = attEd.list.length > 0;
     let quiz = null;
     if (kind === "qcm") {
       const r = qcmParse(false);
@@ -422,31 +462,36 @@ $("#pubForm").addEventListener("submit", async e => {
     }
     const ids = tgt === "all" ? [] : checkedIn("#tgtBox", "tchk");
     if (tgt !== "all" && !ids.length) throw new Error(tgt === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
-    if (kind === "doc" && !f && !$("#pComment").value.trim()) throw new Error("ajoutez un fichier ou un commentaire");
+    if (kind === "doc" && !hasFiles && !$("#pComment").value.trim()) throw new Error("ajoutez un fichier ou un commentaire");
     let cards = null;
     if (kind === "memo") {
       const cr = QCM.parseCards($("#cText").value); cards = cr.cards;
       if (cr.bad.length) throw new Error(`ligne(s) de cartes non comprise(s) : « ${cr.bad.slice(0, 2).join(" », « ")} » — utilisez « question → réponse »`);
-      if (!cards.length && !f && !$("#pComment").value.trim()) throw new Error("ajoutez des cartes, un fichier ou un texte à retenir");
+      if (!cards.length && !hasFiles && !$("#pComment").value.trim()) throw new Error("ajoutez des cartes, un fichier ou un texte à retenir");
     }
+    const pubAt = fromLocalInput($("#pPub").value) || new Date().toISOString(), closeAt = kind === "qcm" ? fromLocalInput($("#pClose").value) : null;
+    if (closeAt && new Date(closeAt) <= new Date(pubAt)) throw new Error("la fin doit être après la publication");
     btn.disabled = true;
-    let path = null;
-    if (f) { prog.textContent = "Envoi du fichier…"; path = await uploadPublic(f, "docs"); }
-    prog.textContent = "Publication…";
     const ch = $("#pChapter").value;
+    const meta = { subject_id: $("#pSubject").value || null, chapter_id: ch && ch !== "__new" ? ch : null };
+    // 1) les fichiers entrent dans la bibliotheque (ou y sont retrouves) AVANT de creer le contenu
+    const rows = await attEd.resolve(meta, $("#pComp").checked, t => prog.textContent = t);
+    prog.textContent = "Publication…";
     const item = await q(sb.from("items").insert({
       kind, title: $("#pTitle").value.trim(), comment: $("#pComment").value.trim() || null, level: $("#pLevel").value.trim() || null,
-      file_path: path, file_name: f ? f.name : null,
-      subject_id: $("#pSubject").value || null, chapter_id: ch && ch !== "__new" ? ch : null,
-      for_all: tgt === "all", publish_at: fromLocalInput($("#pPub").value) || new Date().toISOString(),
-      due_at: kind === "doc" || kind === "memo" ? null : fromLocalInput($("#pDue").value), quiz, cards,
+      subject_id: meta.subject_id, chapter_id: meta.chapter_id,
+      for_all: tgt === "all", publish_at: pubAt, draft, close_at: closeAt, hide_after_close: !!closeAt && $("#pHide").checked,
+      due_at: kind === "devoir" ? fromLocalInput($("#pDue").value) : null, quiz, cards, quiz_src: kind === "qcm" ? $("#qText").value : null,
       session_id: $("#pSession").value || null,
     }).select().single());
     if (tgt === "students") await q(sb.from("item_students").insert(ids.map(s => ({ item_id: item.id, student_id: s }))));
     if (tgt === "groups") await q(sb.from("item_groups").insert(ids.map(g => ({ item_id: item.id, group_id: g }))));
-    const when = $("#pPub").value ? ` (visible à partir du ${fmtDT(fromLocalInput($("#pPub").value))})` : "";
-    showMsg($("#pubMsg"), `${KIND[kind]} ${kind === "memo" ? "publiée" : "publié"} ✔${when}`, "ok");
-    $("#pTitle").value = ""; $("#pComment").value = ""; $("#pLevel").value = ""; fileInput.value = ""; $("#fileName").textContent = ""; $("#pDue").value = ""; $("#pPub").value = "";
+    if (rows.length) await q(sb.from("item_resources").insert(rows.map(r => ({ ...r, item_id: item.id }))));
+    const when = $("#pPub").value ? ` (visible à partir du ${fmtDT(pubAt)}${closeAt ? " jusqu'au " + fmtDT(closeAt) : ""})` : closeAt ? ` (jusqu'au ${fmtDT(closeAt)})` : "";
+    const fem = kind === "memo";
+    showMsg($("#pubMsg"), draft ? `${KIND[kind]} ${fem ? "enregistrée" : "enregistré"} comme brouillon 💾 — invisible pour les élèves. Publiez-le quand vous voulez depuis « Contenus ».`
+      : `${KIND[kind]} ${fem ? "publiée" : "publié"} ✔${when}`, "ok");
+    $("#pTitle").value = ""; $("#pComment").value = ""; $("#pLevel").value = ""; fileInput.value = ""; attEd.clear(); $("#pDue").value = ""; $("#pPub").value = ""; $("#pClose").value = ""; $("#pHide").checked = false;
     if (kind === "qcm") resetQuiz();
     if (kind === "memo") { $("#cText").value = ""; $("#cStatus").innerHTML = ""; }
     await loadAll();
@@ -454,6 +499,405 @@ $("#pubForm").addEventListener("submit", async e => {
     showMsg($("#pubMsg"), "Erreur : " + (err.message || err));
   } finally { btn.disabled = false; prog.textContent = ""; }
 });
+
+// ================= Bibliotheque : 1 fichier physique -> plusieurs utilisations =================
+const MAX_MB = 50;
+const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+// Empreinte SHA-256 du fichier (reconnait un fichier deja present, meme renomme)
+async function sha256(file) {
+  const buf = await file.arrayBuffer();
+  if (window.crypto && crypto.subtle) { try { return hex(await crypto.subtle.digest("SHA-256", buf)); } catch (e) {} }
+  return sha256js(new Uint8Array(buf));
+}
+function sha256js(bytes) {
+  const K = [], H = [];
+  for (let n = 2, c = 0; c < 64; n++) {
+    let p = true; for (let d = 2; d * d <= n; d++) if (n % d === 0) { p = false; break; }
+    if (!p) continue;
+    if (c < 8) H[c] = (Math.pow(n, 1 / 2) * 4294967296) | 0;
+    K[c++] = (Math.pow(n, 1 / 3) * 4294967296) | 0;
+  }
+  const h = new Uint32Array(H), l = bytes.length, nb = ((l + 9 + 63) >> 6) << 6;
+  const p = new Uint8Array(nb); p.set(bytes); p[l] = 0x80;
+  const dv = new DataView(p.buffer); dv.setUint32(nb - 4, (l * 8) >>> 0); dv.setUint32(nb - 8, Math.floor(l / 0x20000000));
+  const W = new Uint32Array(64);
+  for (let o = 0; o < nb; o += 64) {
+    for (let i = 0; i < 16; i++) W[i] = dv.getUint32(o + i * 4);
+    for (let i = 16; i < 64; i++) {
+      const a = W[i - 15], b = W[i - 2];
+      W[i] = W[i - 16] + ((a >>> 7 | a << 25) ^ (a >>> 18 | a << 14) ^ (a >>> 3)) + W[i - 7] + ((b >>> 17 | b << 15) ^ (b >>> 19 | b << 13) ^ (b >>> 10));
+    }
+    let [a, b, c, d, e, f, g, k] = h;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (k + ((e >>> 6 | e << 26) ^ (e >>> 11 | e << 21) ^ (e >>> 25 | e << 7)) + ((e & f) ^ (~e & g)) + K[i] + W[i]) >>> 0;
+      const t2 = (((a >>> 2 | a << 30) ^ (a >>> 13 | a << 19) ^ (a >>> 22 | a << 10)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      k = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    h[0] += a; h[1] += b; h[2] += c; h[3] += d; h[4] += e; h[5] += f; h[6] += g; h[7] += k;
+  }
+  return [...h].map(x => x.toString(16).padStart(8, "0")).join("");
+}
+// Photos : on reduit seulement si le gain est reel (>= 30 %). PDF, Word, ZIP… ne sont jamais recompresses.
+async function maybeCompress(f) {
+  if (!/^image\/(jpeg|png|webp)$/.test(f.type) || f.size < 400 * 1024 || typeof createImageBitmap !== "function") return { file: f };
+  try {
+    const bmp = await createImageBitmap(f);
+    const k = Math.min(1, 2400 / Math.max(bmp.width, bmp.height)), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+    const c = document.createElement("canvas"); c.width = w; c.height = h; const ctx = c.getContext("2d");
+    if (f.type !== "image/jpeg") { // image avec transparence : on n'y touche pas
+      ctx.drawImage(bmp, 0, 0, w, h); const d = ctx.getImageData(0, 0, w, h).data;
+      for (let i = 3; i < d.length; i += 4 * 37) if (d[i] < 250) return { file: f };
+    }
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h); ctx.drawImage(bmp, 0, 0, w, h);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", f.type === "image/jpeg" ? 0.85 : 0.9));
+    if (!blob || blob.size > f.size * 0.7) return { file: f };
+    return { file: new File([blob], f.name.replace(/\.(png|webp|jpe?g)$/i, "") + ".jpg", { type: "image/jpeg" }), from: f.size, to: blob.size };
+  } catch (e) { return { file: f }; }
+}
+const findDup = (hash, file) => S.res.find(r => r.sha256 === hash) || S.res.find(r => !r.sha256 && file && r.file_name === file.name && +r.size === file.size);
+const cleanName = n => n.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+// Ajoute un fichier a la bibliotheque, ou renvoie celui qui y est deja (aucune copie)
+async function addToLibrary(file, meta = {}, opts = {}) {
+  if (file.size > MAX_MB * 1048576) throw new Error(`« ${file.name} » dépasse ${MAX_MB} Mo`);
+  const hash = opts.hash || await sha256(file);
+  const ex = findDup(hash, file);
+  if (ex) {
+    if (!ex.sha256) { await sb.from("resources").update({ sha256: hash }).eq("id", ex.id); ex.sha256 = hash; }
+    return { res: ex, reused: true };
+  }
+  const c = opts.compress === false ? { file } : await maybeCompress(file), up = c.file;
+  const path = `lib/${uid()}/${safeName(up.name)}`;
+  await q(sb.storage.from(BUCKET).upload(path, up, { contentType: up.type || "application/octet-stream" }));
+  try {
+    const row = await q(sb.from("resources").insert({ name: meta.name || cleanName(file.name) || file.name, file_name: up.name, path, mime: up.type || null,
+      size: up.size, sha256: hash, subject_id: meta.subject_id || null, chapter_id: meta.chapter_id || null }).select().single());
+    S.res.unshift(row);
+    return { res: row, reused: false, info: c.from ? `photo optimisée : ${fmtSize(c.from)} → ${fmtSize(c.to)}` : "" };
+  } catch (err) { await sb.storage.from(BUCKET).remove([path]); throw err; }
+}
+async function openRes(rid) {
+  const r = byId("res", rid);
+  try { preview(await signedUrl(r.path), r.file_name); } catch (err) { alert("Erreur : " + err.message); }
+}
+function dropZone(el, input, onFiles) {
+  el.addEventListener("click", () => input.click());
+  el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
+  el.addEventListener("dragleave", () => el.classList.remove("over"));
+  el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("over"); if (e.dataTransfer.files.length) onFiles([...e.dataTransfer.files]); });
+  input.addEventListener("change", () => { if (input.files.length) onFiles([...input.files]); input.value = ""; });
+}
+// ---- usages et acces ----
+const resItems = rid => S.iRes.filter(x => x.resource_id === rid).map(x => ({ it: byId("items", x.item_id), role: x.role })).filter(x => x.it.id);
+const resCorr = rid => S.subs.filter(s => s.corrected_resource_id === rid);
+const resDirect = rid => S.rStu.filter(x => x.resource_id === rid);
+const itemRes = id => S.iRes.filter(x => x.item_id === id).sort((a, b) => (a.role === "correction") - (b.role === "correction") || a.position - b.position)
+  .map(x => ({ ...byId("res", x.resource_id), role: x.role })).filter(r => r.id);
+function accessOf(rid, sid) {
+  const why = [];
+  if (S.rStu.some(x => x.resource_id === rid && x.student_id === sid)) why.push({ t: "direct" });
+  resItems(rid).forEach(({ it, role }) => {
+    const k = itemStatus(it).k;
+    if (k === "draft" || k === "archived" || (k === "ended" && it.hide_after_close)) return; // contenu invisible : ne donne pas acces
+    if (targetsOf(it).includes(sid)) why.push({ t: "item", it, role, planned: k === "planned" });
+  });
+  resCorr(rid).forEach(s => { if (s.student_id === sid) why.push({ t: "corr", s }); });
+  return why;
+}
+const whyTxt = x => x.t === "direct" ? "accès direct (ressource perso)" : x.t === "corr" ? "sa copie corrigée" : `via ${KIND[x.it.kind].toLowerCase()} « ${x.it.title} »${x.role === "correction" ? " (correction)" : ""}${x.planned ? " (programmé le " + fmtDT(x.it.publish_at) + ")" : ""}`;
+
+// ---- page Bibliotheque ----
+function fillLibSelects() {
+  const cur = $("#lSub").value, curC = $("#lCh").value, f = $("#lFSub").value;
+  $("#lSub").innerHTML = `<option value="">— Aucune —</option>` + S.subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("#lSub").value = S.subjects.some(s => s.id === cur) ? cur : "";
+  $("#lCh").innerHTML = `<option value="">— Général —</option>` + S.chapters.filter(c => c.subject_id === $("#lSub").value).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  $("#lCh").value = S.chapters.some(c => c.id === curC) ? curC : "";
+  $("#lFSub").innerHTML = `<option value="">Toutes les matières</option>` + S.subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("#lFSub").value = f;
+}
+$("#lSub").addEventListener("change", fillLibSelects);
+["#lSearch", "#lFSub", "#lFUse"].forEach(s => $(s).addEventListener(s === "#lSearch" ? "input" : "change", renderLib));
+dropZone($("#libDrop"), $("#libFile"), async files => {
+  const out = [];
+  const meta = { subject_id: $("#lSub").value || null, chapter_id: $("#lCh").value || null };
+  for (let k = 0; k < files.length; k++) {
+    const f = files[k];
+    $("#libMsg").innerHTML = `<div class="small muted">Traitement ${k + 1}/${files.length} : ${esc(f.name)}…</div>`;
+    try {
+      const r = await addToLibrary(f, meta, { compress: $("#lComp").checked });
+      out.push(r.reused ? `♻️ <b>${esc(f.name)}</b> était déjà dans la bibliothèque (« ${esc(r.res.name)} ») : rien n'a été renvoyé.` : `✔ <b>${esc(f.name)}</b> ajouté${r.info ? " · " + r.info : ""}`);
+    } catch (err) { out.push(`⚠️ <b>${esc(f.name)}</b> : ${esc(err.message || err)}`); }
+  }
+  $("#libMsg").innerHTML = `<div class="msg ok" style="display:block">${out.join("<br>")}</div>`;
+  await loadAll(true);
+});
+function renderLib() {
+  const qs = $("#lSearch").value.trim().toLowerCase(), fs = $("#lFSub").value, fu = $("#lFUse").value;
+  const total = S.res.reduce((a, r) => a + (+r.size || 0), 0);
+  $("#libUsage").innerHTML = `${S.res.length} fichier(s) · ${fmtSize(total) || "0 o"} sur 1 Go <span class="usage-bar"><span style="width:${Math.min(100, total / 1073741824 * 100).toFixed(1)}%"></span></span>`;
+  let list = S.res.filter(r => (!qs || (r.name + " " + r.file_name).toLowerCase().includes(qs)) && (!fs || r.subject_id === fs));
+  if (fu === "unused") list = list.filter(r => !resItems(r.id).length && !resCorr(r.id).length && !resDirect(r.id).length);
+  if (fu === "corr") list = list.filter(r => resCorr(r.id).length);
+  // rangement : Matiere > Chapitre > fichiers (un chapitre n'apparait que dans sa matiere)
+  const subs = [...S.subjects, { id: null, name: "Sans matière" }];
+  $("#libList").innerHTML = list.length ? subs.map(sb_ => {
+    const inS = list.filter(r => (r.subject_id || null) === sb_.id); if (!inS.length) return "";
+    const chaps = [...S.chapters.filter(c => c.subject_id === sb_.id), { id: null, name: "Général" }];
+    return `<details class="folder" open><summary>📁 ${esc(sb_.name)}<span class="count">${inS.length} fichier(s)</span></summary><div class="inner">${chaps.map(c => {
+      const l = inS.filter(r => (r.chapter_id || null) === c.id);
+      return l.length ? `<div class="chap">${esc(c.name)}</div>` + l.map(resCard).join("") : "";
+    }).join("")}</div></details>`;
+  }).join("")
+    : `<div class="empty">${S.res.length ? "Aucun fichier ne correspond." : "Votre bibliothèque est vide : ajoutez vos cours, exercices et corrections ci-dessus."}</div>`;
+}
+function resCard(r) {
+  const uses = resItems(r.id), corr = resCorr(r.id);
+  const sub = byId("subjects", r.subject_id).name, ch = byId("chapters", r.chapter_id).name;
+  const where = [...uses.map(({ it, role }) => `<a href="#" class="use" onclick="editItem('${it.id}');return false" title="Modifier ce contenu">${KICO[it.kind]} ${esc(it.title)}${role === "correction" ? " · correction" : ""}</a>`),
+    ...corr.map(s => `<span class="use">🖊 copie corrigée de ${esc(nameOf(s.student_id))}</span>`)];
+  const chips = S.students.map(st => {
+    const w = accessOf(r.id, st.id), on = w.length > 0;
+    return `<button type="button" class="ac ${on ? "on" : "off"}" title="${esc(on ? w.map(whyTxt).join(" + ") : "Pas d'accès — cliquer pour donner l'accès")}" onclick="toggleAccess('${r.id}','${st.id}')">${esc(st.name)} ${on ? "✅" : "❌"}</button>`;
+  }).join("");
+  return `<div class="doc" id="res-${r.id}"><div class="ico">${esc(ext(r.file_name))}</div>
+    <div class="body">
+      <div class="row" style="gap:8px"><span class="title">${esc(r.name)}</span>${r.version > 1 ? `<span class="badge" style="background:#f2f4f7;color:#344054">v${r.version}</span>` : ""}</div>
+      <div class="small muted">${esc(r.file_name)}${r.size ? " · " + fmtSize(r.size) : ""} · ${fmtDate(r.updated_at || r.created_at)}${sub ? " · 📁 " + esc(sub) + (ch ? " › " + esc(ch) : "") : ""}</div>
+      <div class="uses">${where.length ? `<span class="small muted">Utilisé dans :</span>` + where.join("") : `<span class="small muted">Utilisé dans aucun contenu</span>`}</div>
+      ${S.students.length ? `<div class="ac-list"><span class="small muted">Accès :</span>${chips}</div>` : ""}
+      <div class="row" style="margin-top:10px">
+        <button class="btn sm ghost" onclick="openRes('${r.id}')">👁 Aperçu</button>
+        <button class="btn sm ghost" onclick="accessForm('${r.id}')">👥 Donner / retirer l'accès</button>
+        <button class="btn sm ghost" onclick="reuseRes('${r.id}')">🔗 Réutiliser</button>
+        <button class="btn sm ghost" onclick="editRes('${r.id}')">✏️ Modifier / 📁 Déplacer</button>
+        <button class="btn sm ghost" onclick="replaceRes('${r.id}')">🔁 Remplacer le fichier</button>
+        <button class="btn sm danger" onclick="delRes('${r.id}')">🗑️ Supprimer</button></div>
+    </div></div>`;
+}
+// ---- donner / retirer l'acces ----
+async function toggleAccess(rid, sid) {
+  const w = accessOf(rid, sid);
+  try {
+    if (!w.length) { await q(sb.from("resource_students").insert({ resource_id: rid, student_id: sid })); return loadAll(true); }
+    if (w.length === 1 && w[0].t === "direct") { await q(sb.from("resource_students").delete().eq("resource_id", rid).eq("student_id", sid)); return loadAll(true); }
+    revokeForm(rid, sid);
+  } catch (err) { alert("Erreur : " + err.message); }
+}
+function revokeForm(rid, sid) {
+  const r = byId("res", rid), w = accessOf(rid, sid);
+  const box = openModal(`<div class="row"><h2 style="margin:0">Retirer l'accès — ${esc(nameOf(sid))}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small muted">« ${esc(r.name)} » : ${esc(nameOf(sid))} y a accès par ${w.length > 1 ? "plusieurs chemins" : "ce chemin"} :</p>
+    <div>${w.map((x, k) => `<div class="list-row"><div style="flex:1;min-width:200px">${x.t === "direct" ? "📎 Accès direct (ressource perso)"
+        : x.t === "corr" ? `🖊 Sa copie corrigée — ${esc(byId("items", x.s.item_id).title || "")}`
+        : `${KICO[x.it.kind]} ${KIND[x.it.kind]} « ${esc(x.it.title)} »${x.role === "correction" ? " (correction)" : ""} <span class="small muted">· ${x.it.for_all ? "toute la classe" : "destinataires choisis"}</span>`}</div>
+      <button class="btn sm danger" data-k="${k}">${x.t === "direct" ? "Retirer l'accès direct" : x.t === "corr" ? "Retirer la copie corrigée" : "Retirer l'élève de ce contenu"}</button></div>`).join("")}</div>
+    <p class="hint">Le fichier reste toujours dans votre bibliothèque. « Retirer l'élève de ce contenu » lui retire le contenu entier (le contenu passe en « élèves choisis » pour les autres).</p>`);
+  $$("[data-k]", box).forEach(b => b.onclick = async () => {
+    const x = w[+b.dataset.k]; b.disabled = true;
+    try {
+      if (x.t === "direct") await q(sb.from("resource_students").delete().eq("resource_id", rid).eq("student_id", sid));
+      else if (x.t === "corr") await q(sb.from("submissions").update({ corrected_resource_id: null }).eq("id", x.s.id));
+      else await setTargets(x.it.id, "students", targetsOf(x.it).filter(s => s !== sid));
+      await loadAll(true);
+      if (accessOf(rid, sid).length) revokeForm(rid, sid); else closeModal();
+    } catch (err) { alert("Erreur : " + err.message); b.disabled = false; }
+  });
+}
+async function setTargets(itemId, mode, ids) {
+  await q(sb.from("items").update({ for_all: mode === "all" }).eq("id", itemId));
+  await q(sb.from("item_students").delete().eq("item_id", itemId));
+  await q(sb.from("item_groups").delete().eq("item_id", itemId));
+  if (mode === "students" && ids.length) await q(sb.from("item_students").insert(ids.map(s => ({ item_id: itemId, student_id: s }))));
+  if (mode === "groups" && ids.length) await q(sb.from("item_groups").insert(ids.map(g => ({ item_id: itemId, group_id: g }))));
+}
+function accessForm(rid) {
+  const r = byId("res", rid);
+  const direct = new Set(resDirect(rid).map(x => x.student_id));
+  const box = openModal(`<div class="row"><h2 style="margin:0">👥 Accès à « ${esc(r.name)} »</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small muted">Les élèves cochés reçoivent ce fichier dans « Mes cours » (ressource perso). <b>Aucune copie n'est créée</b> : c'est le même fichier pour tous.</p>
+    ${S.groups.length ? `<div class="row small" style="margin-bottom:8px">Cocher un groupe : ${S.groups.map(g => `<button type="button" class="btn sm ghost" data-g="${g.id}">👥 ${esc(g.name)}</button>`).join("")}</div>` : ""}
+    <div class="checks" style="max-height:300px">${S.students.map(st => {
+      const other = accessOf(rid, st.id).filter(x => x.t !== "direct");
+      return `<label><input type="checkbox" class="acchk" value="${st.id}" ${direct.has(st.id) ? "checked" : ""}> ${esc(st.name)}${other.length ? ` <span class="small muted" title="${esc(other.map(whyTxt).join(" + "))}">(✅ déjà ${esc(other.map(whyTxt).join(", "))})</span>` : ""}</label>`;
+    }).join("") || `<span class="small muted">Ajoutez d'abord des élèves.</span>`}</div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="acSave">Enregistrer</button><button type="button" class="btn ghost" id="acAll">Tout cocher</button><button type="button" class="btn ghost" id="acNone">Tout décocher</button></div>
+    <div id="acMsg" class="msg hidden"></div>`);
+  $$("[data-g]", box).forEach(b => b.onclick = () => S.sg.filter(x => x.group_id === b.dataset.g).forEach(x => { const c = $(`.acchk[value="${x.student_id}"]`, box); if (c) c.checked = true; }));
+  $("#acAll", box).onclick = () => $$(".acchk", box).forEach(c => c.checked = true);
+  $("#acNone", box).onclick = () => $$(".acchk", box).forEach(c => c.checked = false);
+  $("#acSave", box).onclick = async () => {
+    const want = new Set($$(".acchk:checked", box).map(c => c.value));
+    const add = [...want].filter(s => !direct.has(s)), del = [...direct].filter(s => !want.has(s));
+    try {
+      if (add.length) await q(sb.from("resource_students").insert(add.map(s => ({ resource_id: rid, student_id: s }))));
+      for (const s of del) await q(sb.from("resource_students").delete().eq("resource_id", rid).eq("student_id", s));
+      closeModal(); await loadAll(true);
+    } catch (err) { showMsg($("#acMsg", box), "Erreur : " + err.message); }
+  };
+}
+// ---- reutiliser / renommer / remplacer / supprimer ----
+function reuseRes(rid) {
+  const r = byId("res", rid);
+  showTab("pub"); attEd.addRes([rid]);
+  if (!$("#pTitle").value) $("#pTitle").value = r.name;
+  if (r.subject_id && !$("#pSubject").value) { $("#pSubject").value = r.subject_id; fillChapters(r.chapter_id); }
+  showMsg($("#pubMsg"), `« ${r.name} » est joint à ce nouveau contenu (même fichier, aucune copie). Choisissez le type, les destinataires, puis publiez.`, "ok");
+  window.scrollTo(0, 0);
+}
+function editRes(rid) {
+  const r = byId("res", rid);
+  const box = openModal(`<div class="row"><h2 style="margin:0">✏️ Modifier / 📁 Déplacer le fichier</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <form id="erForm" class="stack" style="margin-top:12px">
+      <div><label>Nom affiché</label><input id="erName" type="text" required value="${esc(r.name)}"></div>
+      <div class="grid2"><div><label>Matière</label><select id="erSub"><option value="">— Aucune —</option>${S.subjects.map(s => `<option value="${s.id}" ${s.id === r.subject_id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div>
+        <div><label>Chapitre</label><select id="erCh"></select></div></div>
+      <div class="hint">Déplacer ne crée aucune copie : c'est le même fichier, rangé ailleurs. Les contenus et les accès ne changent pas.</div>
+      <div class="row"><button class="btn" type="submit">Enregistrer</button></div><div id="erMsg" class="msg hidden"></div></form>`);
+  const fillC = () => { const sid = $("#erSub", box).value; $("#erCh", box).innerHTML = `<option value="">— Général —</option>` + S.chapters.filter(c => c.subject_id === sid).map(c => `<option value="${c.id}" ${c.id === r.chapter_id ? "selected" : ""}>${esc(c.name)}</option>`).join(""); };
+  fillC(); $("#erSub", box).onchange = fillC;
+  $("#erForm", box).onsubmit = async e => {
+    e.preventDefault();
+    try {
+      await q(sb.from("resources").update({ name: $("#erName", box).value.trim(), subject_id: $("#erSub", box).value || null, chapter_id: $("#erCh", box).value || null }).eq("id", rid));
+      closeModal(); loadAll(true);
+    } catch (err) { showMsg($("#erMsg", box), "Erreur : " + err.message); }
+  };
+}
+function replaceRes(rid) {
+  const r = byId("res", rid), uses = resItems(rid), nAcc = S.students.filter(st => accessOf(rid, st.id).length).length;
+  const box = openModal(`<div class="row"><h2 style="margin:0">🔁 Remplacer « ${esc(r.name)} »</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small">La nouvelle version prend la place de l'ancienne : les <b>${uses.length} contenu(s)</b> et les <b>${nAcc} élève(s)</b> qui utilisent ce fichier verront automatiquement la nouvelle version. L'ancienne est effacée (pas de doublon). Les accès ne changent pas.</p>
+    <div class="stack">
+      <input id="rpFile" type="file">
+      <label class="inline"><input type="checkbox" id="rpNew" checked style="width:auto"> Signaler la mise à jour aux élèves (étiquette « Nouveau »)</label>
+      <label class="inline"><input type="checkbox" id="rpComp" checked style="width:auto"> Optimiser si c'est une photo</label>
+      <div class="row"><button class="btn" id="rpBtn">Remplacer le fichier</button><span id="rpProg" class="small muted"></span></div>
+      <div id="rpMsg" class="msg hidden"></div></div>`);
+  $("#rpBtn", box).onclick = async () => {
+    const f = $("#rpFile", box).files[0];
+    if (!f) return showMsg($("#rpMsg", box), "Choisissez le nouveau fichier.");
+    if (f.size > MAX_MB * 1048576) return showMsg($("#rpMsg", box), `Le fichier dépasse ${MAX_MB} Mo.`);
+    const btn = $("#rpBtn", box); btn.disabled = true;
+    try {
+      $("#rpProg", box).textContent = "Vérification…";
+      const hash = await sha256(f);
+      if (hash === r.sha256) throw new Error("c'est exactement le même fichier que la version actuelle");
+      const other = S.res.find(x => x.sha256 === hash && x.id !== rid);
+      if (other) throw new Error(`ce fichier est déjà dans la bibliothèque sous le nom « ${other.name} ». Utilisez-le directement, ou supprimez-le avant.`);
+      const c = $("#rpComp", box).checked ? await maybeCompress(f) : { file: f }, up = c.file;
+      $("#rpProg", box).textContent = "Envoi…";
+      const path = `lib/${uid()}/${safeName(up.name)}`;
+      await q(sb.storage.from(BUCKET).upload(path, up, { contentType: up.type || "application/octet-stream" }));
+      try {
+        await q(sb.from("resources").update({ path, file_name: up.name, mime: up.type || null, size: up.size, sha256: hash,
+          version: (r.version || 1) + 1, updated_at: new Date().toISOString() }).eq("id", rid));
+      } catch (err) { await sb.storage.from(BUCKET).remove([path]); throw err; }
+      await sb.storage.from(BUCKET).remove([r.path]);
+      if ($("#rpNew", box).checked) {
+        const ids = uses.map(u => u.it.id);
+        if (ids.length) await sb.from("item_views").delete().in("item_id", ids);
+        await sb.from("resource_students").update({ seen_at: null }).eq("resource_id", rid);
+      }
+      closeModal(); await loadAll(true);
+    } catch (err) { showMsg($("#rpMsg", box), "Impossible : " + (err.message || err)); btn.disabled = false; $("#rpProg", box).textContent = ""; }
+  };
+}
+function delRes(rid) {
+  const r = byId("res", rid), uses = resItems(rid), corr = resCorr(rid), dir = resDirect(rid);
+  const used = uses.length + corr.length + dir.length > 0;
+  const box = openModal(`<div class="row"><h2 style="margin:0">🗑️ Supprimer définitivement ?</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p><b>${esc(r.name)}</b> <span class="small muted">(${esc(r.file_name)}${r.size ? ", " + fmtSize(r.size) : ""})</span></p>
+    ${used ? `<div class="msg err" style="display:block">⚠️ Ce fichier est encore utilisé :
+        <ul style="margin:6px 0 0 18px;padding:0">${uses.map(({ it, role }) => `<li>${KICO[it.kind]} ${KIND[it.kind]} « ${esc(it.title)} »${role === "correction" ? " (correction)" : ""}</li>`).join("")}
+        ${corr.map(s => `<li>🖊 copie corrigée de ${esc(nameOf(s.student_id))}</li>`).join("")}
+        ${dir.length ? `<li>📎 accès direct : ${dir.map(x => esc(nameOf(x.student_id))).join(", ")}</li>` : ""}</ul></div>
+      <p class="small">S'il est supprimé, il disparaîtra de ces endroits. Les contenus eux-mêmes (devoirs, QCM…) ne sont pas supprimés.</p>
+      <label class="inline"><input type="checkbox" id="drOk" style="width:auto"> Je confirme la suppression malgré ces utilisations</label>`
+      : `<p class="small">Ce fichier n'est utilisé nulle part.</p>`}
+    <p class="small muted">Action définitive : le fichier est effacé du stockage.</p>
+    <div class="row"><button class="btn danger" id="drBtn">Supprimer définitivement</button><button class="btn ghost" onclick="closeModal()">Annuler</button></div>
+    <div id="drMsg" class="msg hidden"></div>`);
+  $("#drBtn", box).onclick = async () => {
+    if (used && !$("#drOk", box).checked) return showMsg($("#drMsg", box), "Cochez la case de confirmation.");
+    $("#drBtn", box).disabled = true;
+    try {
+      await q(sb.from("resources").delete().eq("id", rid));
+      const { error } = await sb.storage.from(BUCKET).remove([r.path]);
+      closeModal(); await loadAll(true);
+      if (error) alert("Le fichier a été retiré de la bibliothèque, mais l'effacement du stockage a échoué : " + error.message);
+    } catch (err) { showMsg($("#drMsg", box), "Erreur : " + err.message); $("#drBtn", box).disabled = false; }
+  };
+}
+// ---- choisir dans la bibliotheque ----
+function pickFromLibrary({ multi = true, exclude = [], title = "📚 Choisir dans la bibliothèque", onPick }) {
+  const sel = new Set();
+  let layer = $("#picker");
+  if (!layer) { layer = document.createElement("div"); layer.id = "picker"; layer.className = "modal"; layer.style.zIndex = 60; layer.innerHTML = `<div class="modal-box qcmbox"></div>`; document.body.appendChild(layer); }
+  const closeP = () => layer.classList.remove("open");
+  const box = layer.firstElementChild; layer.classList.add("open");
+  box.innerHTML = (`<div class="row"><h2 style="margin:0">${title}</h2><div class="spacer"></div><button class="btn sm ghost" data-close>✕</button></div>
+    <div class="row" style="margin:12px 0 8px"><input id="lpQ" type="text" placeholder="Rechercher…" style="flex:1;min-width:180px"><select id="lpS" style="max-width:200px"><option value="">Toutes les matières</option>${S.subjects.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></div>
+    <div id="lpList" class="lp-list"></div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="lpOk">${multi ? "Ajouter la sélection" : "Choisir"}</button><button type="button" class="btn ghost" data-close>Annuler</button><span class="small muted" id="lpN"></span></div>`);
+  $$("[data-close]", box).forEach(b => b.onclick = closeP);
+  const draw = () => {
+    const qv = $("#lpQ", box).value.trim().toLowerCase(), sv = $("#lpS", box).value;
+    const list = S.res.filter(r => (!qv || (r.name + " " + r.file_name).toLowerCase().includes(qv)) && (!sv || r.subject_id === sv));
+    $("#lpList", box).innerHTML = list.length ? list.map(r => { const n = resItems(r.id).length, dis = exclude.includes(r.id);
+      return `<label><input type="${multi ? "checkbox" : "radio"}" name="lp" value="${r.id}" ${sel.has(r.id) || dis ? "checked" : ""} ${dis ? "disabled" : ""}>
+        <span class="ico-sm">${esc(ext(r.file_name))}</span><span style="flex:1;min-width:0"><b>${esc(r.name)}</b><br><span class="small muted">${esc(r.file_name)}${r.size ? " · " + fmtSize(r.size) : ""}${byId("subjects", r.subject_id).name ? " · " + esc(byId("subjects", r.subject_id).name) : ""} · utilisé ${n} fois${dis ? " · déjà ajouté" : ""}</span></span></label>`; }).join("")
+      : `<div class="empty">${S.res.length ? "Aucun résultat." : "La bibliothèque est vide."}</div>`;
+    $$("#lpList input", box).forEach(i => i.onchange = () => { if (!multi) sel.clear(); i.checked ? sel.add(i.value) : sel.delete(i.value); $("#lpN", box).textContent = sel.size ? sel.size + " sélectionné(s)" : ""; });
+  };
+  $("#lpQ", box).oninput = draw; $("#lpS", box).onchange = draw; draw();
+  $("#lpOk", box).onclick = () => { if (!sel.size) return; closeP(); onPick([...sel]); };
+  $("#lpQ", box).focus();
+}
+// ---- liste des fichiers d'un contenu (publier / modifier) ----
+function attEditor(el, init, opts) {
+  const ed = { list: init.slice(), el };
+  ed.draw = () => {
+    const roles = opts.roles();
+    el.innerHTML = ed.list.map((a, k) => {
+      const r = a.res ? byId("res", a.res) : null, nm = r ? r.name : a.file.name;
+      const state = r ? (a.reused ? `♻️ déjà dans la bibliothèque : réutilisé, rien n'est renvoyé` : `📚 fichier de la bibliothèque`)
+        : a.hashing ? `⏳ vérification…` : `🆕 nouveau fichier (${fmtSize(a.file.size)}) : sera ajouté à la bibliothèque`;
+      return `<div class="att-row"><span class="ico-sm">${esc(ext(r ? r.file_name : a.file.name))}</span>
+        <div style="flex:1;min-width:160px"><b>${esc(nm)}</b><div class="small muted">${state}</div></div>
+        ${roles ? `<select data-role="${k}" title="Quand l'élève voit ce fichier"><option value="file">Visible tout de suite</option><option value="correction" ${a.role === "correction" ? "selected" : ""}>Correction : visible après le rendu</option></select>` : ""}
+        ${r ? `<button type="button" class="btn sm ghost" onclick="openRes('${r.id}')" title="Aperçu">👁</button>` : ""}
+        <button type="button" class="btn sm ghost" data-rm="${k}" title="Retirer de ce contenu (le fichier reste dans la bibliothèque)">✕</button></div>`;
+    }).join("");
+    $$("[data-role]", el).forEach(s => s.onchange = () => ed.list[+s.dataset.role].role = s.value);
+    $$("[data-rm]", el).forEach(b => b.onclick = () => { ed.list.splice(+b.dataset.rm, 1); ed.draw(); });
+  };
+  ed.addRes = ids => { ids.forEach(id => { if (!ed.list.some(a => a.res === id)) ed.list.push({ res: id, role: "file" }); }); ed.draw(); };
+  ed.addFiles = files => {
+    files.forEach(f => {
+      if (f.size > MAX_MB * 1048576) return alert(`« ${f.name} » dépasse ${MAX_MB} Mo.`);
+      const a = { file: f, role: "file", hashing: true }; ed.list.push(a);
+      sha256(f).then(h => {
+        a.hash = h; a.hashing = false;
+        const d = findDup(h, f);
+        if (d) { if (ed.list.some(x => x.res === d.id)) ed.list.splice(ed.list.indexOf(a), 1); else { a.res = d.id; a.reused = true; delete a.file; } }
+        ed.draw();
+      });
+    });
+    ed.draw();
+  };
+  ed.clear = () => { ed.list = []; ed.draw(); };
+  // televerse les nouveaux fichiers puis renvoie les lignes item_resources (sans item_id)
+  ed.resolve = async (meta, compress, prog) => {
+    const rows = [];
+    for (let k = 0; k < ed.list.length; k++) {
+      const a = ed.list[k];
+      if (!a.res) { if (prog) prog(`Envoi du fichier ${k + 1}/${ed.list.length}…`); const r = await addToLibrary(a.file, meta, { hash: a.hash, compress }); a.res = r.res.id; a.reused = r.reused; delete a.file; }
+      if (!rows.some(x => x.resource_id === a.res)) rows.push({ resource_id: a.res, role: opts.roles() ? (a.role || "file") : "file", position: k });
+    }
+    return rows;
+  };
+  return ed;
+}
 
 // ---------- Contenus ----------
 function targetsOf(it) {
@@ -468,63 +912,149 @@ function targetLabel(it) {
   const s = S.iStu.filter(x => x.item_id === it.id).map(x => nameOf(x.student_id));
   return [...g.map(n => `<span class="badge" style="background:#e7f6ee;color:#1b7f4b">👥 ${esc(n)}</span>`), ...s.map(n => `<span class="badge">${esc(n)}</span>`)].join(" ");
 }
+// Statut : Brouillon -> Programme -> En ligne -> Termine / Archive (toujours le MEME contenu)
+function itemStatus(it) {
+  const now = new Date();
+  if (it.draft) return { k: "draft", cls: "wait", txt: "✏️ Brouillon" };
+  if (it.archived) return { k: "archived", cls: "wait", txt: "🗄 Archivé" };
+  if (new Date(it.publish_at) > now) return { k: "planned", cls: "todo", txt: "⏰ Programmé · " + fmtDT(it.publish_at) };
+  if (it.close_at && new Date(it.close_at) <= now) return { k: "ended", cls: "graded", txt: "🏁 Terminé" + (it.hide_after_close ? " · masqué" : "") };
+  return { k: "live", cls: "done", txt: "🟢 En ligne" + (it.close_at ? " jusqu'au " + fmtDT(it.close_at) : "") };
+}
+const seenByStudents = it => { const k = itemStatus(it).k; return k === "live" || (k === "ended" && !it.hide_after_close); };
+async function setItem(id, patch, msg) {
+  if (msg && !confirm(msg)) return;
+  try { await q(sb.from("items").update(patch).eq("id", id)); await loadAll(true); } catch (err) { alert("Erreur : " + err.message); }
+}
+function publishNow(id) {
+  const it = byId("items", id), later = new Date(it.publish_at) > new Date();
+  setItem(id, later ? { draft: false, archived: false } : { draft: false, archived: false, publish_at: new Date().toISOString() },
+    later ? `Publier « ${it.title} » ? Il apparaîtra chez les élèves le ${fmtDT(it.publish_at)} (date programmée).` : null);
+}
 function renderItems() {
-  const fs = $("#fSubject").value, fk = $("#fKind").value, fst = $("#fStudent").value;
-  const list = S.items.filter(i => (!fs || i.subject_id === fs) && (!fk || i.kind === fk) && (!fst || targetsOf(i).includes(fst)));
+  const fs = $("#fSubject").value, fk = $("#fKind").value, fst = $("#fStudent").value, fss = $("#fStatus").value;
+  const list = S.items.filter(i => (!fs || i.subject_id === fs) && (!fk || i.kind === fk) && (!fst || targetsOf(i).includes(fst)) && (!fss || itemStatus(i).k === fss));
   $("#itemList").innerHTML = list.length ? list.map(it => {
     const sub = byId("subjects", it.subject_id).name, ch = byId("chapters", it.chapter_id).name;
-    const planned = new Date(it.publish_at) > new Date();
+    const st = itemStatus(it);
     const nT = targetsOf(it).length, nR = S.subs.filter(s => s.item_id === it.id).length;
-    return `<div class="doc"><div class="ico ${it.kind}">${it.kind === "doc" ? esc(it.file_name ? ext(it.file_name) : "NOTE") : it.kind === "qcm" ? "QCM" : "DEV"}</div>
+    const files = itemRes(it.id);
+    return `<div class="doc"><div class="ico ${it.kind}">${it.kind === "doc" ? esc(files[0] ? ext(files[0].file_name) : "NOTE") : it.kind === "qcm" ? "QCM" : it.kind === "memo" ? "🧠" : "DEV"}</div>
       <div class="body">
-        <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span><span class="badge">${KIND[it.kind]}</span>${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${it.kind === "qcm" ? `<span class="small muted">${(it.quiz || []).length} question(s)</span>` : ""}${planned ? `<span class="pill wait">⏰ Planifié · ${fmtDT(it.publish_at)}</span>` : ""}</div>
+        <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span><span class="badge">${KIND[it.kind]}</span>${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${it.kind === "qcm" ? `<span class="small muted">${(it.quiz || []).length} question(s)</span>` : ""}<span class="pill ${st.cls}">${esc(st.txt)}</span></div>
         <div class="small muted">${sub ? "📁 " + esc(sub) + (ch ? " › " + esc(ch) : "") + " · " : ""}${fmtDate(it.created_at)}${it.due_at ? " · à rendre avant le " + fmtDT(it.due_at) : ""}</div>
         <div style="margin-top:6px">${targetLabel(it)} <span class="small muted" title="Élèves ayant ouvert ce contenu">👁 vu par ${S.views.filter(v => v.item_id === it.id).length}/${nT}</span>${it.session_id && byId("sessions", it.session_id).id ? ` <span class="small muted">· 📅 séance du ${fmtDate(byId("sessions", it.session_id).starts_at)}</span>` : ""}${it.kind === "memo" ? ` <span class="small muted">· 🧠 ${(it.cards || []).length} carte(s), retenue par ${S.memo.filter(m => m.item_id === it.id && m.confirmed_at).length}/${nT}</span>` : ""}</div>
         ${it.comment ? `<div class="comment">${esc(it.comment)}</div>` : ""}
         <div class="row" style="margin-top:10px">
-          ${it.file_path ? `<button class="btn sm ghost" onclick="preview(fileUrl(byId('items','${it.id}').file_path), byId('items','${it.id}').file_name)">👁 Aperçu</button>` : ""}
+          ${files.map(r => `<button class="btn sm ghost" onclick="openRes('${r.id}')" title="${esc(r.file_name)}">👁 ${esc(r.name.length > 24 ? r.name.slice(0, 22) + "…" : r.name)}${r.role === "correction" ? " (correction)" : ""}</button>`).join("")}
           ${it.kind === "qcm" ? `<button class="btn sm ghost" onclick="testQcm('${it.id}')">👁 Tester</button>` : ""}
           ${it.kind !== "doc" ? `<button class="btn sm" onclick="openSuivi('${it.id}')">✅ Suivi (${nR}/${nT})</button>` : ""}
           <button class="btn sm ghost" onclick="editItem('${it.id}')">✏️ Modifier</button>
+          ${st.k === "draft" ? `<button class="btn sm" onclick="publishNow('${it.id}')">▶ Publier</button>`
+            : st.k === "archived" ? `<button class="btn sm ghost" onclick="setItem('${it.id}', { archived: false })">♻️ Désarchiver</button>`
+            : `<button class="btn sm ghost" onclick="setItem('${it.id}', { draft: true }, 'Repasser en brouillon ? Le contenu disparaît chez les élèves (les résultats sont conservés).')">⏸ Brouillon</button>
+               <button class="btn sm ghost" onclick="setItem('${it.id}', { archived: true }, 'Archiver ? Le contenu disparaît chez les élèves ; il reste ici avec tous les résultats.')">🗄 Archiver</button>`}
+          ${it.kind === "qcm" ? `<button class="btn sm ghost" onclick="editItem('${it.id}', 'dates')" title="Même QCM : nouvelles dates et/ou nouveaux élèves, sans copie">📅 Reprogrammer / réutiliser</button>` : ""}
           <button class="btn sm danger" onclick="delItem('${it.id}')">Supprimer</button></div>
       </div></div>`;
   }).join("") : `<div class="empty">Aucun contenu.</div>`;
 }
-["#fSubject", "#fKind", "#fStudent"].forEach(s => $(s).addEventListener("change", renderItems));
-function editItem(id) {
-  const it = byId("items", id);
-  const box = openModal(`<div class="row"><h2 style="margin:0">Modifier</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+["#fSubject", "#fKind", "#fStudent", "#fStatus"].forEach(s => $(s).addEventListener("change", renderItems));
+function editItem(id, focus) {
+  const it = byId("items", id), nSub = S.subs.filter(x => x.item_id === id).length;
+  const stNow = it.draft ? "draft" : it.archived ? "archived" : "pub";
+  const box = openModal(`<div class="row"><h2 style="margin:0">Modifier · ${KIND[it.kind]}</h2><span class="pill ${itemStatus(it).cls}">${esc(itemStatus(it).txt)}</span><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     <form id="edForm" class="stack" style="margin-top:12px">
       <div class="grid2" style="grid-template-columns:2fr 1fr"><div><label>Titre</label><input id="eTitle" type="text" value="${esc(it.title)}" required></div>
         <div><label>Niveau / classe</label><input id="eLevel" type="text" value="${esc(it.level || "")}"></div></div>
       <div><label>Commentaire / consignes</label><textarea id="eComment">${esc(it.comment || "")}</textarea></div>
       <div class="grid2"><div><label>Matière</label><select id="eSub"><option value="">— Aucune —</option>${S.subjects.map(s => `<option value="${s.id}" ${s.id === it.subject_id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div>
         <div><label>Chapitre</label><select id="eCh"></select></div></div>
-      <div class="grid2">${it.kind !== "doc" ? `<div><label>Date limite</label><input id="eDue" type="datetime-local" value="${toLocalInput(it.due_at)}"></div>` : ""}
-        <div><label>Visible à partir du</label><input id="ePub" type="datetime-local" value="${toLocalInput(it.publish_at)}"></div></div>
-      <div class="row"><button class="btn" type="submit">Enregistrer</button></div><div id="eMsg" class="msg hidden"></div></form>`);
+      ${it.kind === "qcm" ? `<div><div class="row"><label style="margin:0">Questions du QCM</label><div class="spacer"></div><button type="button" class="btn sm ghost" id="eQChk">✔ Vérifier</button></div>
+        <textarea id="eQuiz" class="qz-paste" spellcheck="false" style="min-height:200px">${esc(it.quiz_src || QCM.toText(it.quiz))}</textarea><div id="eQSt"></div>
+        ${nSub ? `<div class="hint" style="color:#a15c00">⚠️ ${nSub} élève(s) ont déjà répondu : leurs notes enregistrées ne changent pas. Modifier les questions peut rendre leur correction incohérente — vous pouvez supprimer leurs tentatives dans « Suivi ».</div>` : ""}</div>` : ""}
+      ${it.kind === "memo" ? `<div><label>Cartes à retenir</label><textarea id="eCards" class="qz-paste" spellcheck="false" style="min-height:150px">${esc(QCM.cardsToText(it.cards))}</textarea></div>` : ""}
+      <div class="card" id="eDates" style="background:var(--bg);padding:14px">
+        <div class="grid2">
+          <div><label>Statut</label><select id="eState"><option value="draft" ${stNow === "draft" ? "selected" : ""}>✏️ Brouillon (invisible pour les élèves)</option><option value="pub" ${stNow === "pub" ? "selected" : ""}>🟢 Publié (selon les dates)</option><option value="archived" ${stNow === "archived" ? "selected" : ""}>🗄 Archivé (invisible, résultats gardés)</option></select></div>
+          <div><label>Visible à partir du</label><input id="ePub" type="datetime-local" value="${toLocalInput(it.publish_at)}"></div>
+          ${it.kind === "devoir" ? `<div><label>Date limite</label><input id="eDue" type="datetime-local" value="${toLocalInput(it.due_at)}"></div>` : ""}
+          ${it.kind === "qcm" ? `<div><label>Fin de la période de réponse</label><input id="eClose" type="datetime-local" value="${toLocalInput(it.close_at)}">
+            <label class="inline small" style="margin-top:6px"><input type="checkbox" id="eHide" style="width:auto" ${it.hide_after_close ? "checked" : ""}> Disparaît chez les élèves à la fin</label></div>` : ""}
+        </div>
+        ${it.kind === "qcm" ? `<div class="hint">Pour réutiliser ce QCM (autre créneau, autres élèves), changez simplement les dates et les destinataires : c'est toujours le même QCM, sans doublon.</div>` : ""}
+      </div>
+      <div><label>Destinataires</label>
+        <div class="seg" id="eTgtSeg" style="margin-bottom:8px"><button type="button" data-t="all">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button></div>
+        <div id="eTgtBox" class="checks hidden"></div>
+        <div class="hint">Pour donner ce contenu à un élève de plus plus tard, cochez-le ici : rien n'est dupliqué${it.kind === "qcm" ? " (le QCM reste unique, chaque élève a ses propres réponses)" : ""}.</div></div>
+      <div><label>Fichiers</label><div id="eAtt" class="att-list"></div>
+        <div class="row"><button type="button" class="btn sm ghost" id="eLib">📚 Ajouter depuis la bibliothèque</button><button type="button" class="btn sm ghost" id="eUp">📎 Nouveau fichier</button><input id="eFile" type="file" multiple class="hidden"></div>
+        <div class="hint">Retirer un fichier d'ici ne le supprime pas de la bibliothèque.</div></div>
+      <div class="row"><button class="btn" type="submit" id="eBtn">Enregistrer</button><span id="eProg" class="small muted"></span></div><div id="eMsg" class="msg hidden"></div></form>`, "qcmbox");
   const fillC = () => { const sid = $("#eSub", box).value; $("#eCh", box).innerHTML = `<option value="">— Général —</option>` + S.chapters.filter(c => c.subject_id === sid).map(c => `<option value="${c.id}" ${c.id === it.chapter_id ? "selected" : ""}>${esc(c.name)}</option>`).join(""); };
   fillC(); $("#eSub", box).onchange = fillC;
+  // destinataires
+  let eT = it.for_all ? "all" : S.iGrp.some(x => x.item_id === id) ? "groups" : "students";
+  const curIds = eT === "groups" ? S.iGrp.filter(x => x.item_id === id).map(x => x.group_id) : S.iStu.filter(x => x.item_id === id).map(x => x.student_id);
+  const drawT = keep => {
+    $$("#eTgtSeg button", box).forEach(b => b.classList.toggle("active", b.dataset.t === eT));
+    renderTargets("#eTgtBox", eT, "e");
+    (keep || []).forEach(v => { const c = $(`#eTgtBox .echk[value="${v}"]`, box); if (c) c.checked = true; });
+  };
+  $$("#eTgtSeg button", box).forEach(b => b.onclick = () => { eT = b.dataset.t; drawT(); });
+  drawT(curIds);
+  // fichiers
+  const ed = attEditor($("#eAtt", box), S.iRes.filter(x => x.item_id === id).sort((a, b) => a.position - b.position).map(x => ({ res: x.resource_id, role: x.role })),
+    { roles: () => it.kind === "devoir" || it.kind === "qcm" });
+  ed.draw();
+  const showQ = () => { const el = $("#eQuiz", box); if (!el) return; const r = QCM.parse(el.value), errs = r.warnings.filter(w => w.level === "err");
+    $("#eQSt", box).innerHTML = errs.length ? `<div class="qz-warn err">⚠️ ${errs.map(w => (w.n ? `Question ${w.n} : ` : "") + esc(w.msg)).join("<br>")}</div>` : `<div class="qz-warn ok">✔ ${r.questions.length} question(s) détectée(s)</div>`; };
+  if ($("#eQChk", box)) $("#eQChk", box).onclick = showQ;
+  if (focus === "dates") setTimeout(() => { $("#eDates", box).scrollIntoView({ block: "center" }); $("#ePub", box).focus(); }, 50);
+  $("#eLib", box).onclick = () => pickFromLibrary({ multi: true, exclude: ed.list.filter(a => a.res).map(a => a.res), onPick: ids => ed.addRes(ids) });
+  dropZone($("#eUp", box), $("#eFile", box), files => ed.addFiles(files));
   $("#edForm", box).onsubmit = async e => {
-    e.preventDefault();
+    e.preventDefault(); $("#eBtn", box).disabled = true;
     try {
+      const ids = eT === "all" ? [] : $$("#eTgtBox .echk:checked", box).map(c => c.value);
+      if (eT !== "all" && !ids.length) throw new Error(eT === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
       const patch = { title: $("#eTitle", box).value.trim(), level: $("#eLevel", box).value.trim() || null, comment: $("#eComment", box).value.trim() || null, subject_id: $("#eSub", box).value || null,
         chapter_id: $("#eCh", box).value || null, publish_at: fromLocalInput($("#ePub", box).value) || new Date().toISOString() };
-      if (it.kind !== "doc") patch.due_at = fromLocalInput($("#eDue", box).value);
-      await q(sb.from("items").update(patch).eq("id", id)); closeModal(); loadAll();
-    } catch (err) { showMsg($("#eMsg", box), "Erreur : " + err.message); }
+      if (it.kind === "devoir") patch.due_at = fromLocalInput($("#eDue", box).value);
+      const stv = $("#eState", box).value; patch.draft = stv === "draft"; patch.archived = stv === "archived";
+      if (it.kind === "qcm") {
+        patch.close_at = fromLocalInput($("#eClose", box).value); patch.hide_after_close = !!patch.close_at && $("#eHide", box).checked;
+        if (patch.close_at && new Date(patch.close_at) <= new Date(patch.publish_at)) throw new Error("la fin doit être après la date de publication");
+        const src = $("#eQuiz", box).value;
+        if (src !== (it.quiz_src || QCM.toText(it.quiz))) {
+          const r = QCM.parse(src);
+          if (!r.ok) { showQ(); throw new Error("le QCM contient des erreurs (voir ci-dessus)"); }
+          patch.quiz = r.questions; patch.quiz_src = src;
+        }
+      }
+      if (it.kind === "memo") {
+        const cr = QCM.parseCards($("#eCards", box).value);
+        if (cr.bad.length) throw new Error(`carte(s) non comprise(s) : « ${cr.bad[0]} »`);
+        patch.cards = cr.cards;
+      }
+      const rows = await ed.resolve({ subject_id: patch.subject_id, chapter_id: patch.chapter_id }, true, t => $("#eProg", box).textContent = t);
+      await q(sb.from("items").update(patch).eq("id", id));
+      await setTargets(id, eT, ids);
+      await q(sb.from("item_resources").delete().eq("item_id", id));
+      if (rows.length) await q(sb.from("item_resources").insert(rows.map(r => ({ ...r, item_id: id }))));
+      closeModal(); loadAll();
+    } catch (err) { showMsg($("#eMsg", box), "Erreur : " + (err.message || err)); $("#eBtn", box).disabled = false; $("#eProg", box).textContent = ""; }
   };
 }
 async function delItem(id) {
   const it = byId("items", id);
   const nR = S.subs.filter(s => s.item_id === id).length;
-  if (!confirm(`Supprimer « ${it.title} » ?${nR ? `\n⚠️ ${nR} rendu(s) d'élèves seront aussi supprimés.` : ""}`)) return;
+  const nF = S.iRes.filter(x => x.item_id === id).length;
+  if (!confirm(`Supprimer « ${it.title} » ?${nR ? `\n⚠️ ${nR} rendu(s)/résultat(s) d'élèves seront aussi supprimés.` : ""}${nF ? `\nLes ${nF} fichier(s) joint(s) restent dans la bibliothèque.` : ""}`)) return;
   try {
     const rendus = S.subs.filter(s => s.item_id === id).flatMap(s => (s.files || []).map(f => f.path));
     if (rendus.length) await sb.storage.from(RENDUS).remove(rendus);
-    const corr = S.subs.filter(s => s.item_id === id && s.corrected_path).map(s => s.corrected_path);
-    if (it.file_path) corr.push(it.file_path);
-    if (corr.length) await sb.storage.from(BUCKET).remove(corr);
     await q(sb.from("items").delete().eq("id", id)); loadAll();
   } catch (err) { alert("Erreur : " + err.message); }
 }
@@ -568,7 +1098,7 @@ function renderSuivi() {
     else st = `<span class="pill done">${due && new Date(s.submitted_at) > due ? "Rendu en retard" : "Rendu"}</span>`;
     return `<div class="list-row"><div style="min-width:170px"><b>${esc(nameOf(sid))}</b> ${s && !s.seen_by_teacher ? `<span class="dot">nouveau</span>` : ""}<div class="small muted">${s ? "le " + fmtDT(s.submitted_at) : ""}</div></div>
       ${st}<div class="spacer"></div>
-      ${s ? (it.kind === "qcm" ? `<b>${s.score}/${s.max_score}</b>${S.attempts.filter(a => a.item_id === it.id && a.student_id === sid).length ? `<span class="small muted">+ ${S.attempts.filter(a => a.item_id === it.id && a.student_id === sid).length} entraînement(s)</span>` : ""}<button class="btn sm ghost" onclick="viewAnswers('${s.id}')">Voir ses réponses</button>` : "")
+      ${s ? (it.kind === "qcm" ? `<b>${s.score}/${s.max_score}</b>${S.attempts.filter(a => a.item_id === it.id && a.student_id === sid).length ? `<span class="small muted">+ ${S.attempts.filter(a => a.item_id === it.id && a.student_id === sid).length} entraînement(s)</span>` : ""}<button class="btn sm ghost" onclick="viewAnswers('${s.id}')">Voir ses réponses</button><button class="btn sm ghost" onclick="attemptsModal('${it.id}','${sid}')">🗂 Tentatives</button>` : "")
           + (s.files || []).map((f, k) => `<button class="btn sm ghost" onclick="openRendu('${s.id}',${k})">📎 ${esc(f.name.length > 22 ? f.name.slice(0, 20) + "…" : f.name)}</button>`).join("")
           + `<button class="btn sm" onclick="gradeForm('${s.id}')">${s.graded_at ? "✏️ Modifier la correction" : "🖊 Corriger"}</button>` : ""}
       </div>`;
@@ -584,6 +1114,29 @@ function viewAnswers(subId) {
   const s = S.subs.find(x => x.id === subId), it = byId("items", s.item_id);
   const box = openModal(`<div class="row"><h2 style="margin:0">${esc(nameOf(s.student_id))} — ${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div><div id="vaBody" style="margin-top:10px"></div>`, false);
   QCM.result($("#vaBody", box), it.quiz || [], s.answers || []);
+}
+// Tentatives d'un eleve a un QCM : voir / supprimer (le QCM lui-meme n'est jamais supprime ici)
+function attemptsModal(itemId, sid) {
+  const it = byId("items", itemId), s = S.subs.find(x => x.item_id === itemId && x.student_id === sid);
+  const rows = [...(s ? [{ off: true, id: s.id, at: s.submitted_at, score: s.score, max: s.max_score, answers: s.answers }] : []),
+    ...S.attempts.filter(a => a.item_id === itemId && a.student_id === sid).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      .map(a => ({ off: false, id: a.id, at: a.created_at, score: a.score, max: a.max_score, answers: a.answers }))];
+  const box = openModal(`<div class="row"><h2 style="margin:0">${esc(nameOf(sid))} — ${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <div style="margin-top:10px">${rows.map((x, k) => `<div class="list-row"><div style="flex:1;min-width:180px"><b>${x.off ? "1ʳᵉ tentative · compte pour la note" : "Entraînement · ne compte pas"}</b><div class="small muted">le ${fmtDT(x.at)}</div></div>
+      <b>${x.score}/${x.max}</b><button class="btn sm ghost" data-v="${k}">Voir</button><button class="btn sm danger" data-d="${k}">Supprimer</button></div>`).join("")
+      || `<div class="empty">Aucune tentative.</div>`}</div>
+    <div id="atBody" style="margin-top:12px"></div>`, "qcmbox");
+  $$("[data-v]", box).forEach(b => b.onclick = () => QCM.result($("#atBody", box), it.quiz || [], rows[+b.dataset.v].answers || []));
+  $$("[data-d]", box).forEach(b => b.onclick = async () => {
+    const x = rows[+b.dataset.d];
+    const msg = x.off ? `Supprimer la 1re tentative de ${nameOf(sid)} (${x.score}/${x.max}) ?\n\nSa note sera effacée et il pourra refaire le QCM : sa prochaine tentative comptera comme la 1re.\nLe QCM lui-même n'est pas supprimé.`
+      : `Supprimer cet entraînement (${x.score}/${x.max} du ${fmtDT(x.at)}) ?\nLa note (1re tentative) ne change pas.`;
+    if (!confirm(msg)) return;
+    try {
+      await q(sb.from(x.off ? "submissions" : "quiz_attempts").delete().eq("id", x.id));
+      await loadAll(true); attemptsModal(itemId, sid);
+    } catch (err) { alert("Erreur : " + err.message); }
+  });
 }
 function testQcm(id) {
   const it = byId("items", id);
@@ -601,19 +1154,33 @@ function gradeForm(subId) {
     <form id="gForm" class="stack">
       <div class="grid2"><div><label>Note</label><input id="gGrade" type="text" placeholder="ex. 15/20" value="${esc(s.grade || "")}"></div></div>
       <div><label>Commentaire pour l'élève</label><textarea id="gFb" placeholder="ex. Bon travail, attention aux unités.">${esc(s.feedback || "")}</textarea></div>
-      <div><label>Copie corrigée (facultatif)</label><input id="gFile" type="file" accept="application/pdf,image/*">${s.corrected_name ? `<div class="hint">Actuelle : ${esc(s.corrected_name)}</div>` : ""}</div>
-      <div class="row"><button class="btn" id="gBtn" type="submit">Envoyer la correction à l'élève</button></div><div id="gMsg" class="msg hidden"></div></form>`);
+      <div><label>Copie corrigée (facultatif)</label>
+        <div id="gAtt" class="att-list"></div>
+        <div class="row"><button type="button" class="btn sm ghost" id="gUp">📎 Téléverser la copie corrigée</button><button type="button" class="btn sm ghost" id="gLib">📚 Choisir dans la bibliothèque</button>
+          <input id="gFile" type="file" accept="application/pdf,image/*" class="hidden"></div>
+        <div class="hint">La copie est rangée dans la bibliothèque (« Copies corrigées ») et reste réservée à cet élève.</div></div>
+      <div class="row"><button class="btn" id="gBtn" type="submit">Envoyer la correction à l'élève</button><span id="gProg" class="small muted"></span></div><div id="gMsg" class="msg hidden"></div></form>`);
+  const old = s.corrected_resource_id;
+  const ed = attEditor($("#gAtt", box), old && byId("res", old).id ? [{ res: old, role: "file" }] : [], { roles: () => false });
+  ed.draw();
+  dropZone($("#gUp", box), $("#gFile", box), files => { ed.list = []; ed.addFiles(files.slice(0, 1)); });
+  $("#gLib", box).onclick = () => pickFromLibrary({ multi: false, title: "📚 Choisir la copie corrigée", onPick: ids => { ed.list = []; ed.addRes(ids); } });
   $("#gForm", box).onsubmit = async e => {
     e.preventDefault(); $("#gBtn", box).disabled = true;
     try {
       const patch = { grade: $("#gGrade", box).value.trim() || null, feedback: $("#gFb", box).value.trim() || null, graded_at: new Date().toISOString(), seen_by_teacher: true };
-      const f = $("#gFile", box).files[0];
-      if (f) {
-        patch.corrected_path = await uploadPublic(f, "corriges"); patch.corrected_name = f.name;
-        if (s.corrected_path) await sb.storage.from(BUCKET).remove([s.corrected_path]);
-      }
+      const rows = await ed.resolve({ name: `Copie corrigée – ${nameOf(s.student_id)} – ${it.title}`, subject_id: it.subject_id, chapter_id: it.chapter_id }, true, t => $("#gProg", box).textContent = t);
+      patch.corrected_resource_id = rows[0] ? rows[0].resource_id : null;
       await q(sb.from("submissions").update(patch).eq("id", s.id)); closeModal(); await loadAll();
-    } catch (err) { showMsg($("#gMsg", box), "Erreur : " + err.message); $("#gBtn", box).disabled = false; }
+      // l'ancienne copie n'est plus utilisee nulle part ? on propose de liberer la place
+      if (old && old !== patch.corrected_resource_id) {
+        const r = byId("res", old);
+        if (r.id && !resItems(old).length && !resCorr(old).length && !resDirect(old).length
+          && confirm(`L'ancienne copie corrigée « ${r.name} » n'est plus utilisée nulle part.\nLa supprimer de la bibliothèque pour libérer de la place ?`)) {
+          await q(sb.from("resources").delete().eq("id", old)); await sb.storage.from(BUCKET).remove([r.path]); await loadAll(true);
+        }
+      }
+    } catch (err) { showMsg($("#gMsg", box), "Erreur : " + (err.message || err)); $("#gBtn", box).disabled = false; $("#gProg", box).textContent = ""; }
   };
 }
 
@@ -738,8 +1305,11 @@ $("#subForm").addEventListener("submit", async e => {
   e.preventDefault();
   try { await q(sb.from("subjects").insert({ name: $("#subName").value.trim(), position: S.subjects.length + 1 })); $("#subName").value = ""; loadAll(); } catch (err) { alert("Erreur : " + err.message); }
 });
+// un chapitre appartient a UNE matiere ; le meme nom peut exister dans une autre matiere
+const chapExists = (sid, n) => S.chapters.find(c => c.subject_id === sid && c.name.trim().toLowerCase() === n.trim().toLowerCase());
 async function addChapter(sid) {
   const v = $("#nc_" + sid).value.trim(); if (!v) return;
+  if (chapExists(sid, v)) return alert(`Le chapitre « ${v} » existe déjà dans ${byId("subjects", sid).name}.`);
   try { await q(sb.from("chapters").insert({ subject_id: sid, name: v, position: S.chapters.length })); loadAll(); } catch (err) { alert("Erreur : " + err.message); }
 }
 async function renameSubject(id) { const n = prompt("Nouveau nom :", byId("subjects", id).name); if (n && n.trim()) { await sb.from("subjects").update({ name: n.trim() }).eq("id", id); loadAll(); } }
@@ -768,12 +1338,12 @@ function renderDash() {
     : `<div class="empty">Aucune question en attente.</div>`;
   // retards
   const late = [];
-  S.items.filter(i => i.kind !== "doc" && i.kind !== "memo" && i.due_at && new Date(i.due_at) < now).forEach(it =>
+  S.items.filter(i => i.kind === "devoir" && seenByStudents(i) && i.due_at && new Date(i.due_at) < now).forEach(it =>
     targetsOf(it).forEach(sid => { if (!S.subs.some(x => x.item_id === it.id && x.student_id === sid)) late.push({ it, sid }); }));
   $("#dLate").innerHTML = late.length ? late.slice(0, 12).map(({ it, sid }) => `<div class="todo-row" onclick="openSuivi('${it.id}')"><div style="flex:1"><div class="title">${esc(nameOf(sid))}</div><div class="small muted">${esc(it.title)} · attendu le ${fmtDT(it.due_at)}</div></div><span class="pill late">En retard</span></div>`).join("")
     : `<div class="empty">Aucun retard.</div>`;
   // fiches
-  const memos = S.items.filter(i => i.kind === "memo" && new Date(i.publish_at) <= now);
+  const memos = S.items.filter(i => i.kind === "memo" && seenByStudents(i));
   $("#dMemo").innerHTML = memos.length ? memos.slice(0, 8).map(it => { const t = targetsOf(it), ok = S.memo.filter(m => m.item_id === it.id && m.confirmed_at && t.includes(m.student_id)).length;
     return `<div class="todo-row" onclick="openSuivi('${it.id}')"><div style="flex:1"><div class="title">${esc(it.title)}</div><div class="prog"><span style="width:${t.length ? ok / t.length * 100 : 0}%"></span></div></div><span class="small"><b>${ok}/${t.length}</b> retenue(s)</span></div>`; }).join("")
     : `<div class="empty">Aucune fiche à retenir publiée.</div>`;
@@ -873,13 +1443,17 @@ function editSess(id) {
       <div><label>Élève(s)</label><div class="checks" style="max-height:120px">${S.students.map(x => `<label><input type="checkbox" class="esS" value="${x.id}" ${sessStudents(id).includes(x.id) ? "checked" : ""}> ${esc(x.name)}</label>`).join("")}</div></div>
       <div class="grid3"><div><label>Date</label><input id="eD" type="date" value="${loc.slice(0, 10)}"></div><div><label>Heure</label><input id="eT" type="time" value="${loc.slice(11, 16)}"></div>
         <div><label>Durée (min)</label><input id="eDur" type="text" inputmode="numeric" value="${s.duration_min}"></div></div>
-      <div><label>Titre</label><input id="eTi" type="text" value="${esc(s.title || "")}"></div>
+      <div class="grid3"><div><label>Matière</label><select id="eSs"><option value="">—</option>${S.subjects.map(x => `<option value="${x.id}" ${x.id === s.subject_id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select></div>
+        <div><label>Chapitre</label><select id="eSc"></select></div>
+        <div><label>Titre</label><input id="eTi" type="text" value="${esc(s.title || "")}"></div></div>
       <div><label>Lien Meet spécifique</label><input id="eL" type="text" value="${esc(s.meet_link || "")}" placeholder="vide = lien par défaut"></div>
       <div><button class="btn" type="submit">Enregistrer</button></div><div id="esM" class="msg hidden"></div></form>`);
+  const fillSc = () => { $("#eSc", box).innerHTML = `<option value="">—</option>` + S.chapters.filter(c => c.subject_id === $("#eSs", box).value).map(c => `<option value="${c.id}" ${c.id === s.chapter_id ? "selected" : ""}>${esc(c.name)}</option>`).join(""); };
+  fillSc(); $("#eSs", box).onchange = fillSc;
   $("#esF", box).onsubmit = async e => { e.preventDefault();
     try {
       const d = new Date(`${$("#eD", box).value}T${$("#eT", box).value}`); if (isNaN(d)) throw new Error("date invalide");
-      await q(sb.from("sessions").update({ starts_at: d.toISOString(), duration_min: parseInt($("#eDur", box).value, 10) || 60, title: $("#eTi", box).value.trim() || null, meet_link: $("#eL", box).value.trim() || null }).eq("id", id));
+      await q(sb.from("sessions").update({ starts_at: d.toISOString(), duration_min: parseInt($("#eDur", box).value, 10) || 60, title: $("#eTi", box).value.trim() || null, subject_id: $("#eSs", box).value || null, chapter_id: $("#eSc", box).value || null, meet_link: $("#eL", box).value.trim() || null }).eq("id", id));
       await q(sb.from("session_students").delete().eq("session_id", id));
       const stu = $$(".esS:checked", box).map(c => c.value);
       if (stu.length) await q(sb.from("session_students").insert(stu.map(sid => ({ session_id: id, student_id: sid }))));

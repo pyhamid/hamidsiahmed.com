@@ -5,7 +5,7 @@
 <title>Espace cours · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=4">
+<link rel="stylesheet" href="assets/style.css?v=5">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -18,7 +18,7 @@
     <h1>Espace cours</h1>
     <p class="sub">Entrez votre nom et le code personnel que votre professeur vous a donné.</p>
     <form id="loginForm" class="card stack">
-      <div><label for="name">Nom et prénom</label><input id="name" type="text" autocomplete="name" required placeholder="ex. Sara Benali"></div>
+      <div><label for="name">Nom et prénom</label><input id="name" type="text" autocomplete="name" required placeholder="ex. Lucas Martin"></div>
       <div><label for="code">Code personnel</label><input id="code" type="text" required placeholder="ex. K7P4QX" style="text-transform:uppercase;letter-spacing:.1em" autocomplete="off"></div>
       <button class="btn" id="loginBtn" type="submit" style="width:100%;justify-content:center">Accéder à mon espace</button>
       <div id="loginMsg" class="msg hidden"></div>
@@ -88,8 +88,8 @@
 <footer>© <span id="y"></span> Hamid Si Ahmed</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js?v=4"></script>
-<script src="assets/qcm.js?v=2"></script>
+<script src="assets/common.js?v=5"></script>
+<script src="assets/qcm.js?v=3"></script>
 <script>
 $("#y").textContent = new Date().getFullYear();
 let data = null, me = null, aboutItem = null, curTab = "home", tick = null;
@@ -97,6 +97,8 @@ const KINDX = { ...KIND, memo: "À retenir" };
 const subName = id => (data.subjects.find(s => s.id === id) || {}).name || "";
 const chapName = id => (data.chapters.find(c => c.id === id) || {}).name || "";
 const findItem = id => data.items.find(i => i.id === id);
+const qcmClosed = it => it.close_at && new Date(it.close_at) <= new Date();
+const findRes = id => (data.resources || []).find(r => r.id === id);
 const day = d => { const x = new Date(d), t = new Date(); const k = Math.round((new Date(x.toDateString()) - new Date(t.toDateString())) / 864e5);
   return k === 0 ? "Aujourd'hui" : k === 1 ? "Demain" : k === -1 ? "Hier" : x.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }); };
 const hm = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
@@ -126,17 +128,59 @@ async function markSeen(ids) {
   await sb.rpc("student_mark_seen", { p_name: me.name, p_code: me.code, p_items: ids });
   renderBadges(); if (curTab === "home") renderHome();
 }
+async function markResSeen(ids) {
+  ids = ids.filter(id => { const r = findRes(id); return r && !r.seen; });
+  if (!ids.length) return;
+  ids.forEach(id => findRes(id).seen = true);
+  await sb.rpc("student_mark_res_seen", { p_name: me.name, p_code: me.code, p_res: ids });
+  renderBadges(); renderFolders(); if (curTab === "home") renderHome();
+}
 function openItem(id) {
   const it = findItem(id); markSeen([id]);
   if (it.kind === "devoir") return openDevoir(id);
   if (it.kind === "qcm") return openQcm(id);
   if (it.kind === "memo") return openMemo(id);
-  if (it.file_path) return preview(fileUrl(it.file_path), it.file_name);
+  const main = (it.files || []).filter(f => f.role === "file");
+  if (main.length === 1 && !it.comment) return openFile(main[0].id);
   openModal(`<div class="row"><h2 style="margin:0">${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
-    ${it.comment ? `<div class="comment" style="margin-top:12px">${esc(it.comment)}</div>` : ""}`);
+    ${it.comment ? `<div class="comment" style="margin-top:12px">${esc(it.comment)}</div>` : ""}
+    ${(it.files || []).length ? `<div class="row" style="margin-top:12px">${fileBtns(it)}</div>` : ""}`);
 }
-function previewItem(id) { markSeen([id]); const it = findItem(id); preview(fileUrl(it.file_path), it.file_name); }
-function previewCorr(id) { const s = findItem(id).submission; preview(fileUrl(s.corrected_path), s.corrected_name); }
+
+// ---------- Fichiers (liens temporaires, verifies par la base) ----------
+async function fileLink(rid, download) {
+  const { data: f, error } = await sb.rpc("student_file", { p_name: me.name, p_code: me.code, p_res: rid });
+  if (error || !f) throw new Error(error ? error.message : "fichier non disponible");
+  return { url: await signedUrl(f.path, download ? f.name : null), name: f.name };
+}
+async function openFile(rid, itemId) {
+  if (itemId) markSeen([itemId]);
+  if (findRes(rid)) markResSeen([rid]);
+  try { const x = await fileLink(rid); preview(x.url, x.name); }
+  catch (e) { alert("Impossible d'ouvrir ce fichier : " + e.message); }
+}
+async function dlFile(rid, itemId) {
+  if (itemId) markSeen([itemId]);
+  if (findRes(rid)) markResSeen([rid]);
+  try { const x = await fileLink(rid, true); location.href = x.url; }
+  catch (e) { alert("Impossible de télécharger ce fichier : " + e.message); }
+}
+const short = (n, k = 26) => n.length > k ? n.slice(0, k - 2) + "…" : n;
+function fileBtns(it) {
+  const fs = it.files || [];
+  const btns = fs.map(f => `<span class="filebtn"><button class="btn sm ${f.role === "correction" ? "ok" : ""}" onclick="openFile('${f.id}','${it.id}')" title="${esc(f.file_name)}">${f.role === "correction" ? "✅ Correction" : "👁 " + (fs.length > 1 ? esc(short(f.name)) : "Aperçu")}</button><button class="btn sm ghost" onclick="dlFile('${f.id}','${it.id}')" title="Télécharger ${esc(f.file_name)}">⬇</button></span>`).join("");
+  const lock = it.corr_locked ? `<span class="pill wait" title="La correction sera visible ${it.kind === "qcm" ? "après votre 1re tentative" : "quand le devoir sera corrigé"}${it.due_at ? " ou après la date limite" : ""}">🔒 Correction bientôt disponible</span>` : "";
+  return btns + lock;
+}
+function resRow(r) {
+  return `<div class="doc">
+    <div class="ico doc">${esc(ext(r.file_name))}</div>
+    <div class="body">
+      <div class="row" style="gap:8px"><span class="title">${esc(r.name)}</span>${!r.seen ? `<span class="badge new">Nouveau</span>` : ""}<span class="badge" style="background:#eef4ff;color:#2f5bd3">📎 Ressource perso</span></div>
+      <div class="small muted">${fmtDate(r.granted_at)}${r.size ? " · " + fmtSize(r.size) : ""}</div>
+      <div class="row" style="margin-top:10px"><button class="btn sm" onclick="openFile('${r.id}')">👁 Aperçu</button><button class="btn sm ghost" onclick="dlFile('${r.id}')">⬇ Télécharger</button></div>
+    </div></div>`;
+}
 
 // ---------- Statuts ----------
 function memoState(it) {
@@ -150,6 +194,7 @@ function status(it) {
   if (it.kind === "memo") return memoState(it);
   if (it.kind === "qcm") {
     if (s) return { cls: "graded", txt: `Fait · ${s.score}/${s.max_score}` };
+    if (qcmClosed(it)) return { cls: "wait", txt: "Terminé · non fait" };
     if (due && due < now) return { cls: "late", txt: "En retard", todo: true };
     return { cls: "todo", txt: "À faire", todo: true };
   }
@@ -170,23 +215,24 @@ function render() {
 }
 function renderBadges() {
   const dot = (sel, n) => $(sel).innerHTML = n ? `<span class="dot">${n}</span>` : "";
-  dot("#dotNew", data.items.filter(i => !i.seen && i.kind === "doc").length);
-  dot("#dotDev", data.items.filter(i => (i.kind === "devoir" || i.kind === "qcm") && !i.submission).length);
+  dot("#dotNew", data.items.filter(i => !i.seen && i.kind === "doc").length + (data.resources || []).filter(r => !r.seen).length);
+  dot("#dotDev", data.items.filter(i => (i.kind === "devoir" || (i.kind === "qcm" && !qcmClosed(i))) && !i.submission).length);
   dot("#dotMemo", data.items.filter(i => i.kind === "memo" && memoState(i).todo).length);
   dot("#dotMsg", data.messages.filter(m => m.from_teacher && !m.read).length);
 }
 
 function itemRow(it, opts = {}) {
   const st = status(it);
-  const icoTxt = it.kind === "qcm" ? "QCM" : it.kind === "devoir" ? "DEV" : it.kind === "memo" ? "🧠" : esc(ext(it.file_name) || "NOTE");
-  const due = it.due_at ? `<span class="small ${new Date(it.due_at) < new Date() && !it.submission ? "" : "muted"}">· à rendre avant le ${fmtDT(it.due_at)}</span>` : "";
+  const f0 = (it.files || [])[0];
+  const icoTxt = it.kind === "qcm" ? "QCM" : it.kind === "devoir" ? "DEV" : it.kind === "memo" ? "🧠" : f0 ? esc(ext(f0.file_name)) : "NOTE";
+  const due = it.due_at ? `<span class="small ${new Date(it.due_at) < new Date() && !it.submission ? "" : "muted"}">· à rendre avant le ${fmtDT(it.due_at)}</span>`
+    : it.close_at ? `<span class="small muted">· ${qcmClosed(it) ? "terminé le" : "à faire avant le"} ${fmtDT(it.close_at)}</span>` : "";
   let actions = "";
-  if (it.file_path && it.kind !== "memo") actions += `<button class="btn sm" onclick="previewItem('${it.id}')">👁 Aperçu</button>
-    <a class="btn sm ghost" href="${fileUrl(it.file_path, true)}" onclick="markSeen(['${it.id}'])">Télécharger</a>`;
+  if (it.kind !== "memo") actions += fileBtns(it);
   if (it.kind === "devoir") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openItem('${it.id}')">${it.submission ? "Voir mon rendu" : "📤 Rendre mon travail"}</button>`;
-  if (it.kind === "qcm") actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openItem('${it.id}')">${it.submission ? "Voir ma correction / m'entraîner" : "▶ Commencer le QCM"}</button>`;
+  if (it.kind === "qcm" && (it.submission || !qcmClosed(it))) actions += `<button class="btn sm ${it.submission ? "ghost" : ""}" onclick="openItem('${it.id}')">${it.submission ? "Voir ma correction / m'entraîner" : "▶ Commencer le QCM"}</button>`;
   if (it.kind === "memo") actions += `<button class="btn sm" onclick="openItem('${it.id}')">🧠 ${it.memo && it.memo.confirmed_at ? "Réviser" : "Apprendre la fiche"}</button>`;
-  if (it.kind === "doc" && !it.file_path && !it.seen) actions += `<button class="btn sm ghost" onclick="markSeen(['${it.id}'])">✓ Vu</button>`;
+  if (it.kind === "doc" && !(it.files || []).length && !it.seen) actions += `<button class="btn sm ghost" onclick="markSeen(['${it.id}'])">✓ Vu</button>`;
   actions += `<button class="btn sm ghost" onclick="askAbout('${it.id}')">💬 Question</button>`;
   const where = opts.where ? `<div class="small muted">📁 ${esc(subName(it.subject_id) || "Autres")}${it.chapter_id ? " › " + esc(chapName(it.chapter_id)) : ""}</div>` : "";
   return `<div class="doc">
@@ -235,11 +281,13 @@ function renderHome() {
       <div style="flex:1;min-width:0"><div class="title">${esc(it.title)}</div><div class="small muted">${KINDX[it.kind]}${it.due_at ? " · avant le " + fmtDT(it.due_at) : ""}</div></div>
       <span class="pill ${st.cls}">${st.txt}</span></div>`; }).join("") : `<div class="empty">Tout est fait 🎉</div>`;
   // Nouveautes
-  const news = data.items.filter(i => !i.seen).slice(0, 8);
+  const news = [...data.items.filter(i => !i.seen).map(i => ({ t: i.publish_at, h: `<div class="todo-row" onclick="openItem('${i.id}')"><span class="badge new">Nouveau</span>
+      <div style="flex:1;min-width:0"><div class="title">${esc(i.title)}</div><div class="small muted">${KINDX[i.kind]} · ${esc(subName(i.subject_id) || "Autres")} · ${fmtDate(i.publish_at)}</div></div></div>` })),
+    ...(data.resources || []).filter(r => !r.seen).map(r => ({ t: r.granted_at, h: `<div class="todo-row" onclick="openFile('${r.id}')"><span class="badge new">Nouveau</span>
+      <div style="flex:1;min-width:0"><div class="title">${esc(r.name)}</div><div class="small muted">📎 Ressource perso · ${esc(subName(r.subject_id) || "Autres")} · ${fmtDate(r.granted_at)}</div></div></div>` }))]
+    .sort((a, b) => new Date(b.t) - new Date(a.t)).slice(0, 8);
   $("#seenAll").classList.toggle("hidden", !news.length);
-  $("#news").innerHTML = news.length ? news.map(it => `<div class="todo-row" onclick="openItem('${it.id}')"><span class="badge new">Nouveau</span>
-      <div style="flex:1;min-width:0"><div class="title">${esc(it.title)}</div><div class="small muted">${KINDX[it.kind]} · ${esc(subName(it.subject_id) || "Autres")} · ${fmtDate(it.publish_at)}</div></div></div>`).join("")
-    : `<div class="empty">Rien de nouveau.</div>`;
+  $("#news").innerHTML = news.length ? news.map(n => n.h).join("") : `<div class="empty">Rien de nouveau.</div>`;
   // Progression par matiere
   const subs = data.subjects.filter(s => data.items.some(i => i.subject_id === s.id) || data.sessions.some(x => x.subject_id === s.id));
   $("#progress").innerHTML = subs.length ? `<div class="grid3">${subs.map(s => {
@@ -257,7 +305,7 @@ function renderHome() {
       <div class="small" style="margin-top:6px">📝 Devoirs rendus : ${devOk} / ${devs.length}</div>${bar(devOk, devs.length)}</div>`;
   }).join("")}</div>` : `<div class="empty">Votre progression apparaîtra ici.</div>`;
 }
-$("#seenAll").onclick = () => markSeen(data.items.filter(i => !i.seen).map(i => i.id));
+$("#seenAll").onclick = () => { markSeen(data.items.filter(i => !i.seen).map(i => i.id)); markResSeen((data.resources || []).filter(r => !r.seen).map(r => r.id)); };
 
 // ---------- Seances ----------
 function sessCard(s, past) {
@@ -283,18 +331,20 @@ function renderSessions() {
 // ---------- Mes cours (dossiers) ----------
 function renderFolders() {
   const q = $("#search").value.trim().toLowerCase();
-  const items = data.items.filter(i => !q || (i.title + " " + (i.comment || "")).toLowerCase().includes(q));
+  const items = data.items.filter(i => !q || (i.title + " " + (i.comment || "") + " " + (i.files || []).map(f => f.name + " " + f.file_name).join(" ")).toLowerCase().includes(q));
+  const res = (data.resources || []).filter(r => !q || (r.name + " " + r.file_name).toLowerCase().includes(q));
   const subs = [...data.subjects, { id: null, name: "Autres" }];
   const html = subs.map(s => {
     const inSub = items.filter(i => (i.subject_id || null) === s.id);
-    if (!inSub.length) return "";
+    const rSub = res.filter(r => (r.subject_id || null) === s.id);
+    if (!inSub.length && !rSub.length) return "";
     const chaps = [...data.chapters.filter(c => c.subject_id === s.id), { id: null, name: "Général" }];
     const inner = chaps.map(c => {
-      const list = inSub.filter(i => (i.chapter_id || null) === c.id);
-      return list.length ? `<div class="chap">${esc(c.name)}</div>` + list.map(i => itemRow(i)).join("") : "";
+      const list = inSub.filter(i => (i.chapter_id || null) === c.id), rl = rSub.filter(r => (r.chapter_id || null) === c.id);
+      return list.length || rl.length ? `<div class="chap">${esc(c.name)}</div>` + list.map(i => itemRow(i)).join("") + rl.map(resRow).join("") : "";
     }).join("");
-    const nNew = inSub.filter(i => !i.seen).length;
-    return `<details class="folder" ${q || items.length <= 25 ? "open" : ""}><summary>📁 ${esc(s.name)}${nNew ? ` <span class="badge new">${nNew} nouveau(x)</span>` : ""}<span class="count">${inSub.length} élément(s)</span></summary><div class="inner">${inner}</div></details>`;
+    const nNew = inSub.filter(i => !i.seen).length + rSub.filter(r => !r.seen).length;
+    return `<details class="folder" ${q || items.length + res.length <= 25 ? "open" : ""}><summary>📁 ${esc(s.name)}${nNew ? ` <span class="badge new">${nNew} nouveau(x)</span>` : ""}<span class="count">${inSub.length + rSub.length} élément(s)</span></summary><div class="inner">${inner}</div></details>`;
   }).join("");
   $("#folders").innerHTML = html || `<div class="card empty">${q ? "Aucun résultat." : "Aucun document pour le moment."}</div>`;
 }
@@ -318,21 +368,23 @@ function renderMemos() {
 }
 function openMemo(id) {
   const it = findItem(id), cards = it.cards || [], st = memoState(it), m = it.memo;
-  const isImg = it.file_name && /\.(png|jpe?g|gif|webp)$/i.test(it.file_name);
+  const mf = (it.files || []).filter(f => f.role === "file");
+  const imgs = mf.filter(f => isImgName(f.file_name)), docs = mf.filter(f => !isImgName(f.file_name));
   const box = openModal(`
     <div class="row" style="align-items:flex-start"><div><h2 style="margin:0">🧠 ${esc(it.title)}</h2>
       <div class="small muted">${esc(subName(it.subject_id) || "")}${it.chapter_id ? " › " + esc(chapName(it.chapter_id)) : ""} · <span class="pill ${st.cls}">${st.txt}</span></div></div>
       <div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     <div id="memoBody" style="margin-top:14px">
       ${it.comment ? `<div class="comment" style="font-size:1.05rem">${esc(it.comment)}</div>` : ""}
-      ${it.file_path ? (isImg ? `<img src="${fileUrl(it.file_path)}" alt="" style="max-width:100%;border-radius:10px;margin-top:12px;border:1px solid var(--line)">`
-                            : `<div class="row" style="margin-top:12px"><button class="btn sm" onclick="preview(fileUrl(findItem('${id}').file_path), findItem('${id}').file_name)">📄 Ouvrir la fiche</button></div>`) : ""}
+      ${imgs.map(f => `<img data-res="${f.id}" alt="${esc(f.name)}" style="max-width:100%;min-height:60px;border-radius:10px;margin-top:12px;border:1px solid var(--line);background:var(--bg)">`).join("")}
+      ${docs.length ? `<div class="row" style="margin-top:12px">${docs.map(f => `<button class="btn sm" onclick="openFile('${f.id}')">📄 Ouvrir ${docs.length > 1 ? esc(short(f.name)) : "la fiche"}</button>`).join("")}</div>` : ""}
       ${cards.length ? `<div class="card" style="margin-top:14px;background:var(--bg)"><b>${cards.length} carte(s) à retenir</b>
           <p class="small muted" style="margin:4px 0 12px">Lisez la fiche, puis entraînez-vous. Pour confirmer que vous l'avez retenue, il faut savoir <b>toutes les cartes du premier coup</b>.</p>
           <button class="btn" id="startCards">▶ ${m && m.confirmed_at ? "Réviser" : "M'entraîner"}</button></div>`
         : `<div class="row" style="margin-top:14px"><button class="btn" id="confirmMemo" ${m && m.confirmed_at && !st.due ? "disabled" : ""}>✔ J'ai lu et retenu cette fiche</button></div>`}
       ${m && m.reviews ? `<p class="small muted" style="margin-top:12px">${m.reviews} révision(s)${m.confirmed_at ? " · retenue depuis le " + fmtDate(m.confirmed_at) : ""}${m.next_review_at ? " · prochaine révision : " + fmtDate(m.next_review_at) : ""}</p>` : ""}
     </div>`, "qcmbox");
+  $$("img[data-res]", box).forEach(async img => { try { img.src = (await fileLink(img.dataset.res)).url; } catch (e) { img.alt = "Image indisponible"; } });
   const send = async (known, total, out) => {
     const { data: r, error } = await sb.rpc("student_memo_review", { p_name: me.name, p_code: me.code, p_item: id, p_known: known, p_total: total });
     if (error) { if (out) out.innerHTML = `<div class="msg err">Erreur : ${esc(error.message)}</div>`; return; }
@@ -389,11 +441,12 @@ function openDevoir(id) {
     <div class="row"><h2 style="margin:0">${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     <p class="small muted" style="margin:6px 0 14px">${it.due_at ? "À rendre avant le " + fmtDT(it.due_at) : "Pas de date limite"} · <span class="pill ${st.cls}">${st.txt}</span></p>
     ${it.comment ? `<div class="comment" style="margin-bottom:14px">${esc(it.comment)}</div>` : ""}
+    ${(it.files || []).length || it.corr_locked ? `<div class="row" style="margin-bottom:14px">${fileBtns(it)}</div>` : ""}
     ${graded ? `<div class="card" style="background:#faf7ff;border-color:#e6dafb;margin-bottom:14px">
         <div class="row"><div><div class="small muted">Note</div><div class="grade">${esc(s.grade || "—")}</div></div></div>
         ${s.feedback ? `<div class="comment" style="margin-top:10px">${esc(s.feedback)}</div>` : ""}
-        ${s.corrected_path ? `<div class="row" style="margin-top:10px"><button class="btn sm" onclick="previewCorr('${it.id}')">👁 Voir ma copie corrigée</button>
-          <a class="btn sm ghost" href="${fileUrl(s.corrected_path, true)}">Télécharger</a></div>` : ""}
+        ${s.corrected ? `<div class="row" style="margin-top:10px"><button class="btn sm" onclick="openFile('${s.corrected.id}')">👁 Voir ma copie corrigée</button>
+          <button class="btn sm ghost" onclick="dlFile('${s.corrected.id}')">⬇ Télécharger</button></div>` : ""}
       </div>` : ""}
     ${s ? `<p class="small">Rendu le ${fmtDT(s.submitted_at)} : ${s.files.map(f => "📎 " + esc(f.name)).join(", ") || "—"}${s.note ? `<br>Mon message : « ${esc(s.note)} »` : ""}</p>` : ""}
     ${graded ? "" : `<form id="rendForm" class="stack">
@@ -445,9 +498,10 @@ function openQcm(id, practice) {
   const it = findItem(id), s = it.submission, quiz = it.quiz || [], p = it.practice || {};
   const box = openModal(`
     <div class="row" style="align-items:flex-start"><div><h2 style="margin:0">${esc(it.title)}</h2>
-      <div class="small muted">${quiz.length} question(s)${it.level ? " · " + esc(it.level) : ""}${it.due_at ? " · à faire avant le " + fmtDT(it.due_at) : ""}</div></div>
+      <div class="small muted">${quiz.length} question(s)${it.level ? " · " + esc(it.level) : ""}${it.close_at ? (qcmClosed(it) ? " · terminé le " : " · à faire avant le ") + fmtDT(it.close_at) : it.due_at ? " · à faire avant le " + fmtDT(it.due_at) : ""}</div></div>
       <div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     ${it.comment ? `<div class="comment" style="margin-top:10px">${esc(it.comment)}</div>` : ""}
+    ${(it.files || []).length || it.corr_locked ? `<div class="row" style="margin-top:10px">${fileBtns(it)}</div>` : ""}
     ${!s ? `<p class="hint" style="margin:10px 0 0">⚠️ <b>Seule la 1ʳᵉ tentative compte pour la note.</b> Vous pourrez ensuite refaire le QCM pour vous entraîner et revoir la correction.</p>`
          : `<div class="row" style="margin-top:10px;gap:8px"><span class="pill graded">Note retenue (1ʳᵉ tentative) : ${s.score}/${s.max_score}</span>${p.count ? `<span class="pill wait">Entraînements : ${p.count} · meilleur ${p.best}/${quiz.length}</span>` : ""}</div>`}
     ${practice ? `<div class="msg ok" style="margin-top:10px">🔁 Mode entraînement : ce résultat <b>ne change pas</b> votre note.</div>` : ""}
@@ -455,6 +509,7 @@ function openQcm(id, practice) {
   const el = $("#qzBody", box);
   const retry = () => openQcm(id, true);
   if (s && !practice) { QCM.result(el, quiz, s.answers || [], { onRetry: retry }); relabelRetry(el); return; }
+  if (!s && qcmClosed(it)) { el.innerHTML = `<div class="empty">🏁 Ce QCM est terminé depuis le ${fmtDT(it.close_at)} : il n'est plus possible d'y répondre.</div>`; return; }
   QCM.player(el, quiz, {
     onFinish: async answers => {
       const fn = s ? "student_quiz_practice" : "student_submit_quiz";
