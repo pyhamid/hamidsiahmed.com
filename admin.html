@@ -5,12 +5,12 @@
 <title>Administration · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=6">
+<link rel="stylesheet" href="assets/style.css?v=8">
 </head>
 <body>
 <header class="top"><div class="wrap">
   <a class="brand" href="./">Hamid <span>Si Ahmed</span> · <span class="muted" style="font-weight:500">Admin</span></a>
-  <nav><a href="cours.html">Espace élève</a><a href="#" id="logout" class="hidden">Déconnexion</a></nav>
+  <nav><a href="#" id="undoBtn" class="hidden" title="Annuler la dernière action (Ctrl+Z)">↩️ Annuler</a><a href="cours.html">Espace élève</a><a href="#" id="logout" class="hidden">Déconnexion</a></nav>
 </div></header>
 <main><div class="wrap">
 
@@ -287,7 +287,7 @@ async function start() {
   if (!ok) { await sb.auth.signOut(); showMsg($("#loginMsg"), "Ce compte n'a pas les droits d'administration."); return; }
   $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#logout").classList.remove("hidden");
   await loadAll();
-  setInterval(() => loadAll(true), 45000);
+  live();
   if ("Notification" in window && Notification.permission === "default") {
     showMsg($("#notifBar"), "🔔 Cliquez ici pour être prévenu (notification) quand un élève rend un travail ou vous écrit.", "ok");
     $("#notifBar").onclick = () => { Notification.requestPermission(); $("#notifBar").classList.add("hidden"); };
@@ -301,7 +301,140 @@ $("#loginForm").addEventListener("submit", async e => {
 });
 $("#logout").addEventListener("click", async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); });
 
-// ---------- Chargement ----------
+
+// ================= ↩️ ANNULER (undo) =================
+// Chaque action du professeur (publier, modifier, supprimer, donner un acces, deplacer un fichier, seances…)
+// est memorisee : « Annuler » remet exactement les donnees d'avant. Les fichiers supprimes ne sont
+// vraiment effaces du stockage qu'a la fermeture de la page, pour pouvoir etre restaures.
+const TBL = { students: "students", groups: "groups", student_groups: "sg", subjects: "subjects", chapters: "chapters", items: "items", item_students: "iStu",
+  item_groups: "iGrp", submissions: "subs", messages: "msgs", announcements: "anns", announcement_targets: "aStu", announcement_groups: "aGrp", sessions: "sessions",
+  session_students: "sStu", item_views: "views", memo_progress: "memo", quiz_attempts: "attempts", settings: "settings", resources: "res", item_resources: "iRes", resource_students: "rStu" };
+const PK = { student_groups: ["student_id", "group_id"], item_students: ["item_id", "student_id"], item_groups: ["item_id", "group_id"], announcement_targets: ["announcement_id", "student_id"],
+  announcement_groups: ["announcement_id", "group_id"], session_students: ["session_id", "student_id"], item_views: ["item_id", "student_id"], memo_progress: ["item_id", "student_id"],
+  item_resources: ["item_id", "resource_id"], resource_students: ["resource_id", "student_id"], settings: ["key"] };
+const ORDER = ["subjects", "chapters", "groups", "students", "sessions", "resources", "items", "announcements", "settings", "student_groups", "session_students", "item_students",
+  "item_groups", "item_resources", "resource_students", "announcement_targets", "announcement_groups", "submissions", "quiz_attempts", "memo_progress", "item_views", "messages"];
+const AUTO_COLS = ["seen_by_teacher", "read_by_teacher", "sha256"];           // mises a jour automatiques : pas une « action »
+const STUDENT_WRITES = { submissions: ["grade", "feedback", "graded_at", "corrected_resource_id", "corrected_path", "corrected_name"], messages: ["body", "item_id"],
+  quiz_attempts: [], memo_progress: [], item_views: [] };                    // tables aussi ecrites par les eleves : on ne touche qu'aux colonnes du prof
+const NOUN = { items: ["Contenu", 0], resources: ["Fichier", 0], sessions: ["Séance", 1], students: ["Élève", 1], groups: ["Groupe", 0], subjects: ["Matière", 1], chapters: ["Chapitre", 0],
+  announcements: ["Annonce", 1], messages: ["Message", 0], submissions: ["Correction", 1], quiz_attempts: ["Tentative", 1], resource_students: ["Accès au fichier", 0],
+  item_students: ["Destinataires", 0], item_groups: ["Destinataires", 0], settings: ["Réglages", 0], session_students: ["Élèves de la séance", 0], item_resources: ["Fichiers du contenu", 0], student_groups: ["Groupes de l'élève", 0] };
+const pkOf = t => PK[t] || ["id"];
+const keyOf = (t, r) => pkOf(t).map(c => r[c]).join("|");
+const undoStack = []; let TX = null, UNDOING = false; const pendingRemovals = [];
+(function hookClient() {
+  const from = sb.from.bind(sb);
+  sb.from = t => {
+    const b = from(t);
+    if (!TBL[t]) return b;
+    ["insert", "update", "delete", "upsert"].forEach(m => { const orig = b[m] && b[m].bind(b); if (orig) b[m] = (...a) => { noteMut(t, m, a[0]); return orig(...a); }; });
+    return b;
+  };
+  const st = sb.storage.from.bind(sb.storage);
+  sb.storage.from = bucket => {
+    const o = st(bucket), rm = o.remove.bind(o);
+    o.remove = async paths => { if (TX && !UNDOING && bucket === BUCKET) { TX.removals.push(...paths); return { data: [], error: null }; } return rm(paths); };
+    return o;
+  };
+})();
+function noteMut(t, m, arg) {
+  if (UNDOING) return;
+  if (m === "update" && arg && Object.keys(arg).every(k => AUTO_COLS.includes(k))) return;
+  if (!TX) TX = { before: structuredClone(S), tables: new Set(), ops: [], hadDelete: false, removals: [], timer: null };
+  TX.tables.add(t); TX.ops.push([t, m]); if (m === "delete") TX.hadDelete = true;
+  clearTimeout(TX.timer); TX.timer = setTimeout(closeTx, 1300);
+}
+async function closeTx() {
+  const tx = TX; TX = null; if (!tx) return;
+  lastSig = null; await loadAll(true);
+  const eff = {}; let n = 0;
+  for (const t in TBL) {
+    const mutated = tx.tables.has(t); if (!mutated && !tx.hadDelete) continue;
+    const b = tx.before[TBL[t]] || [], a = S[TBL[t]] || [];
+    const bm = new Map(b.map(r => [keyOf(t, r), r])), am = new Map(a.map(r => [keyOf(t, r), r]));
+    const sw = STUDENT_WRITES[t];
+    let added = mutated ? a.filter(r => !bm.has(keyOf(t, r))) : [];
+    if (sw) added = t === "messages" ? added.filter(r => r.from_teacher) : [];
+    const removed = b.filter(r => !am.has(keyOf(t, r)));
+    const changed = [];
+    a.forEach(r => {
+      const o = bm.get(keyOf(t, r)); if (!o) return;
+      let cols = [...new Set([...Object.keys(o), ...Object.keys(r)])].filter(c => JSON.stringify(o[c]) !== JSON.stringify(r[c]) && !AUTO_COLS.includes(c));
+      if (sw) cols = cols.filter(c => sw.includes(c));
+      if (!mutated) cols = cols.filter(c => /_id$/.test(c) && r[c] == null);   // « mis a vide » par une suppression
+      if (cols.length) changed.push({ before: o, after: r, cols });
+    });
+    if (added.length || removed.length || changed.length) { eff[t] = { added, removed, changed }; n++; }
+  }
+  if (!n) { if (tx.removals.length) sb.storage.from(BUCKET).remove(tx.removals); return; }
+  const PRIO = ["items", "sessions", "resources", "students", "announcements", "groups", "subjects", "chapters", "submissions", "quiz_attempts", "messages", "settings"];
+  const [t0, m0] = tx.ops.slice().sort((x, y) => ((PRIO.indexOf(x[0]) + 99) % 99) - ((PRIO.indexOf(y[0]) + 99) % 99))[0], nn = NOUN[t0] || ["Modification", 1];
+  const title = (x => x && (x.title || x.name || x.message))((eff[t0] && (eff[t0].removed[0] || eff[t0].added[0] || (eff[t0].changed[0] || {}).after)));
+  const verb = m0 === "delete" ? "supprimé" : m0 === "insert" ? "ajouté" : "modifié";
+  const label = `${nn[0]} ${verb}${nn[1] ? "e" : ""}${title ? " : « " + String(title).slice(0, 40) + " »" : ""}`;
+  const entry = { label, eff, removals: tx.removals, at: Date.now() };
+  undoStack.push(entry); if (undoStack.length > 20) { const old = undoStack.shift(); flushRemovals(old); }
+  updateUndoBtn();
+  toast(`✔ ${esc(label)}`, () => doUndo(entry));
+}
+function flushRemovals(e) { if (e && e.removals.length && !e.flushed) { e.flushed = true; UNDOING = true; try { sb.storage.from(BUCKET).remove(e.removals); } finally { UNDOING = false; } } }
+window.addEventListener("pagehide", () => undoStack.forEach(flushRemovals));
+function updateUndoBtn() {
+  const b = $("#undoBtn"), e = undoStack[undoStack.length - 1];
+  b.classList.toggle("hidden", !e); if (e) b.title = "Annuler : " + e.label + " (Ctrl+Z)";
+}
+async function doUndo(entry) {
+  entry = entry || undoStack[undoStack.length - 1]; if (!entry) return;
+  const i = undoStack.indexOf(entry); if (i < 0) return;
+  if (i !== undoStack.length - 1 && !confirm(`Annuler « ${entry.label} » ? (des actions plus récentes existent, elles sont conservées)`)) return;
+  if (TX) { clearTimeout(TX.timer); await closeTx(); }
+  UNDOING = true;
+  try {
+    const E = entry.eff, del = (t, r) => { let qy = sb.from(t).delete(); pkOf(t).forEach(c => qy = qy.eq(c, r[c])); return q(qy); };
+    for (const t of [...ORDER].reverse()) for (const r of (E[t] ? E[t].added : [])) await del(t, r);
+    for (const t of ORDER) if (E[t] && E[t].removed.length) await q(sb.from(t).upsert(E[t].removed));
+    for (const t of ORDER) for (const c of (E[t] ? E[t].changed : [])) {
+      const patch = {}; c.cols.forEach(k => patch[k] = c.before[k]);
+      let qy = sb.from(t).update(patch); pkOf(t).forEach(k => qy = qy.eq(k, c.before[k])); await q(qy);
+    }
+    // fichiers : ceux ajoutes par l'action sont effaces ; ceux qu'elle avait supprimes n'ont jamais ete effaces
+    const drop = [...((E.resources || {}).added || []).map(r => r.path),
+      ...((E.resources || {}).changed || []).filter(c => c.before.path !== c.after.path).map(c => c.after.path)];
+    if (drop.length) await sb.storage.from(BUCKET).remove(drop);
+    undoStack.splice(i, 1);
+  } catch (err) { alert("Impossible d'annuler : " + err.message); }
+  finally { UNDOING = false; }
+  if (entry.flushed) alert("Les données sont restaurées, mais le fichier supprimé avait déjà été effacé du stockage.");
+  updateUndoBtn(); lastSig = null; await loadAll(true);
+  toast(`↩️ Annulé : ${esc(entry.label)}`);
+}
+$("#undoBtn").addEventListener("click", e => { e.preventDefault(); doUndo(); });
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && !document.activeElement.isContentEditable) { e.preventDefault(); doUndo(); }
+});
+
+// ---------- Chargement + mises a jour en direct ----------
+let lastSig = null;
+function live() {
+  let t = null;
+  const kick = () => { clearTimeout(t); t = setTimeout(() => loadAll(true), 700); };
+  // temps reel : le site est prevenu des qu'un eleve rend un travail, ecrit, fait un QCM ou ouvre un contenu
+  try {
+    let ch = sb.channel("admin-live");
+    ["submissions", "messages", "quiz_attempts", "memo_progress", "item_views"].forEach(tb => { ch = ch.on("postgres_changes", { event: "*", schema: "public", table: tb }, kick); });
+    ch.subscribe();
+  } catch (e) {}
+  setInterval(() => loadAll(true), 20000); // secours si le temps reel est coupe
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadAll(true); });
+  window.addEventListener("focus", () => loadAll(true));
+}
+function toast(html, onUndo) {
+  let w = $("#toasts"); if (!w) { w = document.createElement("div"); w.id = "toasts"; document.body.appendChild(w); }
+  const d = document.createElement("div"); d.className = "toast"; d.innerHTML = html + (onUndo ? ` <button class="toast-undo">↩️ Annuler</button>` : ""); w.appendChild(d); while (w.children.length > 3) w.firstChild.remove();
+  d.onclick = e => { if (e.target.classList.contains("toast-undo")) onUndo(); d.remove(); };
+  setTimeout(() => d.remove(), onUndo ? 12000 : 9000);
+}
 async function loadAll(quiet) {
   try {
     const r = await Promise.all([
@@ -314,6 +447,9 @@ async function loadAll(quiet) {
       q(sb.from("memo_progress").select("*")), q(sb.from("quiz_attempts").select("*")), q(sb.from("settings").select("*")),
       q(sb.from("resources").select("*").order("created_at", { ascending: false })), q(sb.from("item_resources").select("*")), q(sb.from("resource_students").select("*")),
     ]);
+    const sig = JSON.stringify(r);
+    if (quiet && sig === lastSig) return; // rien n'a change : on ne touche pas a l'ecran
+    lastSig = sig;
     [S.students, S.groups, S.sg, S.subjects, S.chapters, S.items, S.iStu, S.iGrp, S.subs, S.msgs, S.anns, S.aStu, S.aGrp,
      S.sessions, S.sStu, S.views, S.memo, S.attempts, S.settings, S.res, S.iRes, S.rStu] = r;
   } catch (err) { if (!quiet) alert("Erreur de chargement : " + err.message); return; }
@@ -330,6 +466,11 @@ function notifs() {
   $("#dotMsg").innerHTML = nMsg ? `<span class="dot">${nMsg}</span>` : "";
   document.title = (nSub + nMsg ? `(${nSub + nMsg}) ` : "") + "Administration · Hamid Si Ahmed";
   const key = nSub + ":" + nMsg;
+  if (lastNotif !== null) {
+    const [ps, pm] = lastNotif.split(":").map(Number);
+    if (nSub > ps) toast(`📥 <b>Nouveau rendu</b> — ${esc(S.subs.filter(s => !s.seen_by_teacher).sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)).slice(0, nSub - ps).map(s => nameOf(s.student_id) + " : " + (byId("items", s.item_id).title || "")).join(", "))}`);
+    if (nMsg > pm) toast(`💬 <b>Nouveau message</b> — ${esc([...new Set(S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).slice(-(nMsg - pm)).map(m => nameOf(m.student_id)))].join(", "))}`);
+  }
   if (lastNotif !== null && key !== lastNotif && nSub + nMsg > 0 && "Notification" in window && Notification.permission === "granted") {
     new Notification("Espace cours", { body: `${nSub} nouveau(x) rendu(s), ${nMsg} message(s) non lu(s)` });
   }
@@ -361,9 +502,11 @@ function applyKind() {
 }
 function renderTargets(box, mode, prefix) {
   const el = $(box); el.classList.toggle("hidden", mode === "all");
+  const keep = el.dataset.mode === mode ? $$("input:checked", el).map(c => c.value) : []; el.dataset.mode = mode; // garde les cases cochees lors d'une mise a jour automatique
   const list = mode === "groups" ? S.groups : S.students;
   el.innerHTML = list.length ? list.map(x => `<label><input type="checkbox" class="${prefix}chk" value="${x.id}"> ${esc(x.name)}${mode === "groups" ? ` <span class="muted small">(${S.sg.filter(s => s.group_id === x.id).length})</span>` : ""}</label>`).join("")
     : `<span class="small muted">${mode === "groups" ? "Créez d'abord un groupe (onglet Élèves & groupes)." : "Ajoutez d'abord des élèves."}</span>`;
+  keep.forEach(v => { const c = $(`input[value="${v}"]`, el); if (c) c.checked = true; });
 }
 const checkedIn = (box, cls) => $$(`${box} .${cls}:checked`).map(c => c.value);
 
@@ -1073,8 +1216,8 @@ async function delItem(id) {
   if (!confirm(`Supprimer « ${it.title} » ?${nR ? `\n⚠️ ${nR} rendu(s)/résultat(s) d'élèves seront aussi supprimés.` : ""}${nF ? `\nLes ${nF} fichier(s) joint(s) restent dans la bibliothèque.` : ""}`)) return;
   try {
     const rendus = S.subs.filter(s => s.item_id === id).flatMap(s => (s.files || []).map(f => f.path));
-    if (rendus.length) await sb.storage.from(RENDUS).remove(rendus);
     await q(sb.from("items").delete().eq("id", id)); loadAll();
+    if (rendus.length) setTimeout(() => { if (!S.items.some(i => i.id === id)) sb.storage.from(RENDUS).remove(rendus); }, 10 * 60000); // effaces 10 min plus tard (sauf si « Annuler »)
   } catch (err) { alert("Erreur : " + err.message); }
 }
 
@@ -1371,12 +1514,21 @@ function renderDash() {
 // ---------- Seances ----------
 let sessView = "up";
 seg("#sessView", "v", v => { sessView = v; renderSessAdmin(); });
+// Seance fixe (chaque semaine) : on n'affiche que la prochaine date, avec le rythme et les dates suivantes
+const WD = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const seriesNext = sid => S.sessions.filter(x => x.series_id === sid && x.status !== "cancelled" && sessEnd(x) > new Date()).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+function seriesInfo(s) {
+  if (!s.series_id) return "";
+  const nx = seriesNext(s.series_id), last = nx[nx.length - 1];
+  return `<div class="small" style="margin-top:4px;color:var(--accent);font-weight:600">🔁 Chaque ${WD[new Date(s.starts_at).getDay()]} à ${hm(s.starts_at)}${last ? ` · ${nx.length} séance(s) à venir, jusqu'au ${fmtDate(last.starts_at)}` : ""}</div>
+    ${nx.length > 1 ? `<details class="small" style="margin-top:4px"><summary style="cursor:pointer;color:var(--muted)">Voir / gérer les dates</summary>${nx.map(x => `<div class="row" style="gap:6px;padding:3px 0">${dayLbl(x.starts_at)} ${new Date(x.starts_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · ${hm(x.starts_at)}<div class="spacer"></div><button class="btn sm ghost" onclick="editSess('${x.id}')">✏️</button><button class="btn sm danger" onclick="delSess('${x.id}')">🗑</button></div>`).join("")}</details>` : ""}`;
+}
 function sessRow(s, compact) {
   const names = sessStudents(s.id).map(nameOf).join(", ") || "<i>aucun élève</i>";
   const nIt = S.items.filter(i => i.session_id === s.id).length, link = sessLink(s);
   const st = s.status === "cancelled" ? `<span class="pill late">Annulée</span>` : s.status === "done" ? `<span class="pill done">Faite</span>` : sessEnd(s) < new Date() ? `<span class="pill wait">À clôturer</span>` : `<span class="pill todo">Prévue</span>`;
   return `<div class="sess"><div class="row">
-      <div style="min-width:0"><div class="sess-date">${dayLbl(s.starts_at)} · ${hm(s.starts_at)} – ${hm(sessEnd(s))} ${s.series_id ? `<span class="small muted" title="Séance fixe">🔁</span>` : ""}</div>
+      <div style="min-width:0"><div class="sess-date">${dayLbl(s.starts_at)} · ${hm(s.starts_at)} – ${hm(sessEnd(s))} ${s.series_id ? `<span class="small muted" title="Séance fixe">🔁</span>` : ""}</div>${compact ? "" : seriesInfo(s)}
         <div class="small muted">👤 ${names}${[byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).length ? " · " + esc([byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ")) : ""} · ${nIt} contenu(s)</div></div>
       <div class="spacer"></div>${st}
       ${link && s.status === "planned" ? `<a class="btn sm" style="background:#1b7f4b" href="${esc(link)}" target="_blank" rel="noopener">🎥 Meet</a>` : ""}
@@ -1386,9 +1538,11 @@ function sessRow(s, compact) {
 }
 function renderSessAdmin() {
   const now = new Date();
+  const seen = new Set();
   const list = sessView === "up"
-    ? S.sessions.filter(s => sessEnd(s) > now && s.status !== "done")
-    : S.sessions.filter(s => sessEnd(s) <= now || s.status === "done").reverse();
+    ? S.sessions.filter(s => sessEnd(s) > now && s.status !== "done" && s.status !== "cancelled")
+        .filter(s => !s.series_id || (!seen.has(s.series_id) && seen.add(s.series_id)))   // une seule ligne par seance fixe : la prochaine
+    : S.sessions.filter(s => sessEnd(s) <= now || s.status === "done" || s.status === "cancelled").reverse();
   $("#sessAdmin").innerHTML = list.length ? list.slice(0, 60).map(s => sessRow(s)).join("") : `<div class="empty">${sessView === "up" ? "Aucune séance prévue. Créez-en une ci-dessus." : "Aucune séance passée."}</div>`;
 }
 function fillSessForm() {
@@ -1466,16 +1620,21 @@ function editSess(id) {
         <div><label>Chapitre</label><select id="eSc"></select></div>
         <div><label>Titre</label><input id="eTi" type="text" value="${esc(s.title || "")}"></div></div>
       <div><label>Lien Meet spécifique</label><input id="eL" type="text" value="${esc(s.meet_link || "")}" placeholder="vide = lien par défaut"></div>
+      ${s.series_id ? `<label class="inline"><input type="checkbox" id="eAll" checked style="width:auto"> 🔁 Appliquer aussi à toutes les séances suivantes de cette série</label>` : ""}
       <div><button class="btn" type="submit">Enregistrer</button></div><div id="esM" class="msg hidden"></div></form>`);
   const fillSc = () => { $("#eSc", box).innerHTML = `<option value="">—</option>` + S.chapters.filter(c => c.subject_id === $("#eSs", box).value).map(c => `<option value="${c.id}" ${c.id === s.chapter_id ? "selected" : ""}>${esc(c.name)}</option>`).join(""); };
   fillSc(); $("#eSs", box).onchange = fillSc;
   $("#esF", box).onsubmit = async e => { e.preventDefault();
     try {
       const d = new Date(`${$("#eD", box).value}T${$("#eT", box).value}`); if (isNaN(d)) throw new Error("date invalide");
-      await q(sb.from("sessions").update({ starts_at: d.toISOString(), duration_min: parseInt($("#eDur", box).value, 10) || 60, title: $("#eTi", box).value.trim() || null, subject_id: $("#eSs", box).value || null, chapter_id: $("#eSc", box).value || null, meet_link: $("#eL", box).value.trim() || null }).eq("id", id));
-      await q(sb.from("session_students").delete().eq("session_id", id));
-      const stu = $$(".esS:checked", box).map(c => c.value);
-      if (stu.length) await q(sb.from("session_students").insert(stu.map(sid => ({ session_id: id, student_id: sid }))));
+      const shift = d - new Date(s.starts_at), stu = $$(".esS:checked", box).map(c => c.value);
+      const common = { duration_min: parseInt($("#eDur", box).value, 10) || 60, title: $("#eTi", box).value.trim() || null, subject_id: $("#eSs", box).value || null, chapter_id: $("#eSc", box).value || null, meet_link: $("#eL", box).value.trim() || null };
+      const targets = $("#eAll", box) && $("#eAll", box).checked ? S.sessions.filter(x => x.series_id === s.series_id && new Date(x.starts_at) >= new Date(s.starts_at)) : [s];
+      for (const x of targets) {
+        await q(sb.from("sessions").update({ ...common, starts_at: new Date(new Date(x.starts_at).getTime() + shift).toISOString() }).eq("id", x.id));
+        await q(sb.from("session_students").delete().eq("session_id", x.id));
+        if (stu.length) await q(sb.from("session_students").insert(stu.map(sid => ({ session_id: x.id, student_id: sid }))));
+      }
       closeModal(); loadAll();
     } catch (err) { showMsg($("#esM", box), "Erreur : " + err.message); } };
 }
@@ -1483,8 +1642,13 @@ async function delSess(id) {
   const s = byId("sessions", id);
   try {
     if (s.series_id && S.sessions.filter(x => x.series_id === s.series_id && new Date(x.starts_at) > new Date(s.starts_at)).length) {
-      const all = confirm("Séance fixe (chaque semaine).\nOK = supprimer celle-ci ET toutes les suivantes.\nAnnuler = choisir de ne supprimer que celle-ci.");
-      if (all) { await q(sb.from("sessions").delete().eq("series_id", s.series_id).gte("starts_at", s.starts_at)); return loadAll(); }
+      const box = openModal(`<div class="row"><h2 style="margin:0">🗑 Supprimer une séance fixe</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+        <p>Séance du ${dayLbl(s.starts_at).toLowerCase()} ${new Date(s.starts_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${hm(s.starts_at)} (chaque ${WD[new Date(s.starts_at).getDay()]}).</p>
+        <div class="stack"><button class="btn ghost" id="dsOne">Seulement cette date</button><button class="btn danger" id="dsAll">Cette date et toutes les suivantes</button></div>
+        <p class="hint">Les contenus liés sont conservés. Vous pourrez aussi cliquer sur « ↩️ Annuler ».</p>`);
+      $("#dsOne", box).onclick = async () => { closeModal(); await q(sb.from("sessions").delete().eq("id", id)); loadAll(); };
+      $("#dsAll", box).onclick = async () => { closeModal(); await q(sb.from("sessions").delete().eq("series_id", s.series_id).gte("starts_at", s.starts_at)); loadAll(); };
+      return;
     }
     if (!confirm("Supprimer cette séance ? (les contenus liés sont conservés)")) return;
     await q(sb.from("sessions").delete().eq("id", id)); loadAll();

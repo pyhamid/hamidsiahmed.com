@@ -5,7 +5,7 @@
 <title>Espace cours · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=6">
+<link rel="stylesheet" href="assets/style.css?v=8">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -116,7 +116,31 @@ async function login(name, code, silent) {
   }
   me = { name, code };
   try { sessionStorage.setItem("eleve", JSON.stringify(me)); } catch (e) {}
-  data = res; render(); return true;
+  lastSig = JSON.stringify(res); data = res; render(); startLive(); return true;
+}
+// ---------- Mises a jour automatiques (sans recharger la page) ----------
+let lastSig = null, liveOn = false;
+async function poll() {
+  if (!me || document.hidden) return;
+  const { data: res } = await sb.rpc("student_space", { p_name: me.name, p_code: me.code });
+  if (!res) return;
+  const sig = JSON.stringify(res); if (sig === lastSig) return;
+  const oldItems = new Set(data.items.map(i => i.id)), oldRes = new Set((data.resources || []).map(r => r.id)), oldMsg = new Set(data.messages.map(m => m.id));
+  lastSig = sig; data = res; render();
+  const ni = res.items.filter(i => !oldItems.has(i.id)), nr = (res.resources || []).filter(r => !oldRes.has(r.id)), nm = res.messages.filter(m => m.from_teacher && !oldMsg.has(m.id));
+  if (ni.length || nr.length) toast(`🆕 <b>Nouveau</b> : ${esc([...ni.map(i => i.title), ...nr.map(r => r.name)].slice(0, 3).join(", "))}`);
+  if (nm.length) { toast(`💬 <b>Nouveau message du professeur</b>`); if (curTab === "messages") showTab("messages"); }
+}
+function startLive() {
+  if (liveOn) return; liveOn = true;
+  setInterval(poll, 20000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+  window.addEventListener("focus", poll);
+}
+function toast(html) {
+  let w = $("#toasts"); if (!w) { w = document.createElement("div"); w.id = "toasts"; document.body.appendChild(w); }
+  const d = document.createElement("div"); d.className = "toast"; d.innerHTML = html; w.appendChild(d); while (w.children.length > 3) w.firstChild.remove();
+  d.onclick = () => d.remove(); setTimeout(() => d.remove(), 9000);
 }
 const reload = () => login(me.name, me.code, true);
 
@@ -321,9 +345,14 @@ function sessCard(s, past) {
 }
 function renderSessions() {
   const now = new Date();
-  const up = data.sessions.filter(s => endOf(s) > now && s.status !== "cancelled" && s.status !== "done").sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
-  const past = data.sessions.filter(s => !up.includes(s)).sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
-  $("#sessList").innerHTML = `<div class="card" style="margin-bottom:16px"><h2>📅 À venir</h2>${up.length ? up.map(s => sessCard(s, false)).join("") : `<div class="empty">Aucun cours prévu.</div>`}</div>
+  const upAll = data.sessions.filter(s => endOf(s) > now && s.status !== "cancelled" && s.status !== "done").sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const past = data.sessions.filter(s => !upAll.includes(s)).sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+  // cours fixes (meme jour, meme heure chaque semaine) : une seule carte avec la prochaine date
+  const WD = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+  const sig = s => [new Date(s.starts_at).getDay(), hm(s.starts_at), s.duration_min, s.subject_id, s.title, (s.with || []).join()].join("|");
+  const groups = new Map(); upAll.forEach(s => { const k = sig(s); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(s); });
+  const up = [...groups.values()].map(g => g.length > 1 && (new Date(g[1].starts_at) - new Date(g[0].starts_at)) % (7 * 864e5) < 36e5 ? { ...g[0], _rep: g } : g[0]);
+  $("#sessList").innerHTML = `<div class="card" style="margin-bottom:16px"><h2>📅 À venir</h2>${up.length ? up.map(s => sessCard(s, false) + (s._rep ? `<div class="small" style="margin:-6px 0 12px 4px;color:var(--accent);font-weight:600">🔁 Chaque ${WD[new Date(s.starts_at).getDay()]} à ${hm(s.starts_at)} · ensuite : ${s._rep.slice(1, 4).map(x => new Date(x.starts_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })).join(", ")}${s._rep.length > 4 ? "…" : ""}</div>` : "")).join("") : `<div class="empty">Aucun cours prévu.</div>`}</div>
     <div class="card"><h2>🗂 Séances passées</h2><p class="hint" style="margin-top:-8px">Retrouvez ici ce qu'on a fait à chaque cours, avec les fichiers, exercices et corrections.</p>
     ${past.length ? past.map(s => sessCard(s, true)).join("") : `<div class="empty">Pas encore de séance passée.</div>`}</div>`;
 }
