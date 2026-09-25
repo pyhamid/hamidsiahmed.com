@@ -5,7 +5,7 @@
 <title>Administration · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=5">
+<link rel="stylesheet" href="assets/style.css?v=6">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -93,6 +93,7 @@
     <form id="pubForm" class="card stack">
       <div class="row"><h2 style="margin:0">Publier</h2><div class="spacer"></div>
         <div class="seg" id="kindSeg"><button type="button" data-k="doc" class="active">📄 Document</button><button type="button" data-k="devoir">📝 Devoir</button><button type="button" data-k="qcm">☑️ QCM</button><button type="button" data-k="memo">🧠 À retenir</button></div></div>
+      <div class="row" style="gap:8px"><button type="button" class="btn sm ghost" onclick="pickItem()">♻️ Réutiliser un contenu ou un QCM existant</button><button type="button" class="btn sm ghost" onclick="showTab('lib')">📚 Ouvrir la Bibliothèque</button><span class="hint" style="margin:0">Même contenu, nouvelles dates ou nouveaux élèves : aucun doublon.</span></div>
       <div><label>Séance liée <span class="muted small">(facultatif)</span></label><select id="pSession"></select><div class="hint">Le contenu apparaîtra dans cette séance (« ce qu'on a fait »), et les élèves de la séance sont choisis automatiquement.</div></div>
       <div class="grid2">
         <div><label>Matière</label><select id="pSubject"></select></div>
@@ -897,6 +898,24 @@ function attEditor(el, init, opts) {
     return rows;
   };
   return ed;
+}
+
+// Reutiliser un contenu existant (QCM, devoir, document…) au lieu de le recreer
+function pickItem() {
+  const box = openModal(`<div class="row"><h2 style="margin:0">♻️ Réutiliser un contenu existant</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small muted">Choisissez le contenu : vous pourrez changer ses dates, ses élèves et ses fichiers. C'est le même contenu (pas de copie) ; les résultats déjà obtenus sont conservés.</p>
+    <div class="row" style="margin-bottom:8px"><input id="piQ" type="text" placeholder="Rechercher…" style="flex:1;min-width:160px">
+      <select id="piK" style="max-width:170px"><option value="">Tous les types</option><option value="qcm">QCM</option><option value="devoir">Devoirs</option><option value="doc">Documents</option><option value="memo">À retenir</option></select></div>
+    <div id="piList" class="lp-list"></div>`, "qcmbox");
+  const draw = () => {
+    const qv = $("#piQ", box).value.trim().toLowerCase(), kv = $("#piK", box).value;
+    const list = S.items.filter(i => (!kv || i.kind === kv) && (!qv || i.title.toLowerCase().includes(qv)));
+    $("#piList", box).innerHTML = list.length ? list.map(i => { const st = itemStatus(i);
+      return `<label data-id="${i.id}"><span class="ico-sm" style="background:var(--accent-soft);color:var(--accent)">${KICO[i.kind]}</span><span style="flex:1;min-width:0"><b>${esc(i.title)}</b><br><span class="small muted">${KIND[i.kind]}${byId("subjects", i.subject_id).name ? " · " + esc(byId("subjects", i.subject_id).name) : ""} · ${esc(st.txt)}</span></span><span class="btn sm">Réutiliser</span></label>`; }).join("")
+      : `<div class="empty">Aucun contenu.</div>`;
+    $$("#piList [data-id]", box).forEach(l => l.onclick = () => editItem(l.dataset.id, "dates"));
+  };
+  $("#piQ", box).oninput = draw; $("#piK", box).onchange = draw; draw();
 }
 
 // ---------- Contenus ----------
