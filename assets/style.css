@@ -223,3 +223,5 @@ a.use:hover{background:var(--accent-soft);color:var(--accent)}
 #toasts{position:fixed;right:16px;bottom:16px;z-index:80;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 32px))}
 .toast{background:#1c2230;color:#fff;border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:.92rem;cursor:pointer;animation:toastin .25s ease}
 @keyframes toastin{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+.toast-undo{margin-left:8px;border:0;border-radius:8px;padding:4px 10px;font:inherit;font-weight:700;background:#fff;color:#1c2230;cursor:pointer}
+nav a#undoBtn{color:var(--accent);font-weight:700}
