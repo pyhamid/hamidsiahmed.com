@@ -946,9 +946,10 @@ function replaceRes(rid) {
     } catch (err) { showMsg($("#rpMsg", box), "Impossible : " + (err.message || err)); btn.disabled = false; $("#rpProg", box).textContent = ""; }
   };
 }
-function delRes(rid) {
+ffunction delRes(rid) {
   const r = byId("res", rid), uses = resItems(rid), corr = resCorr(rid), dir = resDirect(rid);
   const used = uses.length + corr.length + dir.length > 0;
+
   const box = openModal(`<div class="row"><h2 style="margin:0">🗑️ Supprimer définitivement ?</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     <p><b>${esc(r.name)}</b> <span class="small muted">(${esc(r.file_name)}${r.size ? ", " + fmtSize(r.size) : ""})</span></p>
     ${used ? `<div class="msg err" style="display:block">⚠️ Ce fichier est encore utilisé :
@@ -961,15 +962,35 @@ function delRes(rid) {
     <p class="small muted">Action définitive : le fichier est effacé du stockage.</p>
     <div class="row"><button class="btn danger" id="drBtn">Supprimer définitivement</button><button class="btn ghost" onclick="closeModal()">Annuler</button></div>
     <div id="drMsg" class="msg hidden"></div>`);
+
   $("#drBtn", box).onclick = async () => {
-    if (used && !$("#drOk", box).checked) return showMsg($("#drMsg", box), "Cochez la case de confirmation.");
+    if (used && !$("#drOk", box).checked)
+      return showMsg($("#drMsg", box), "Cochez la case de confirmation.");
+
     $("#drBtn", box).disabled = true;
+
     try {
+      // Cette suppression est définitive :
+      // on désactive temporairement le mécanisme Undo afin que
+      // le fichier soit réellement supprimé du Storage.
+      UNDOING = true;
+
+      const { error: storageError } =
+        await sb.storage.from(BUCKET).remove([r.path]);
+
+      if (storageError) throw storageError;
+
       await q(sb.from("resources").delete().eq("id", rid));
-      const { error } = await sb.storage.from(BUCKET).remove([r.path]);
-      closeModal(); await loadAll(true);
-      if (error) alert("Le fichier a été retiré de la bibliothèque, mais l'effacement du stockage a échoué : " + error.message);
-    } catch (err) { showMsg($("#drMsg", box), "Erreur : " + err.message); $("#drBtn", box).disabled = false; }
+
+      closeModal();
+      await loadAll(true);
+
+    } catch (err) {
+      showMsg($("#drMsg", box), "Erreur : " + (err.message || err));
+      $("#drBtn", box).disabled = false;
+    } finally {
+      UNDOING = false;
+    }
   };
 }
 // ---- choisir dans la bibliotheque ----
