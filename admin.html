@@ -946,7 +946,7 @@ function replaceRes(rid) {
     } catch (err) { showMsg($("#rpMsg", box), "Impossible : " + (err.message || err)); btn.disabled = false; $("#rpProg", box).textContent = ""; }
   };
 }
-ffunction delRes(rid) {
+function delRes(rid) {
   const r = byId("res", rid), uses = resItems(rid), corr = resCorr(rid), dir = resDirect(rid);
   const used = uses.length + corr.length + dir.length > 0;
 
