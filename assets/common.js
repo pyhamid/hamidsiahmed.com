@@ -72,3 +72,34 @@ function openModal(html, wide) {
   return box;
 }
 function closeModal() { const m = $("#modal"); if (m) { m.classList.remove("open"); document.body.style.overflow = ""; } }
+
+// ================= 🔔 Notifications sur téléphone / ordinateur (Web Push) =================
+// Cle PUBLIQUE VAPID (la cle privee est uniquement dans les secrets Supabase, jamais ici)
+const VAPID_PUBLIC_KEY = "BGBmquk4sr70sczEhpywKEQro7bAXbg-ep1amWDY0glzdfje-YwVUgO0qJY21ezEMTg2pBqejQJV6T_4sr5dkg8";
+const NOTIFY_URL = SUPABASE_URL + "/functions/v1/notify";
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const swReady = "serviceWorker" in navigator ? navigator.serviceWorker.register("sw.js").then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
+function b64uToBytes(s) { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+// Abonnement deja actif sur cet appareil ? (null sinon)
+async function pushCurrent() {
+  if (!pushSupported() || Notification.permission !== "granted") return null;
+  const reg = await swReady; if (!reg) return null;
+  return reg.pushManager.getSubscription();
+}
+// Demande l'autorisation puis abonne cet appareil ; renvoie l'abonnement (JSON) a enregistrer dans la base
+async function pushSubscribe() {
+  if (!pushSupported()) throw new Error(isIOS() && !isStandalone() ? "sur iPhone, ajoutez d'abord le site à l'écran d'accueil (bouton Partager → « Sur l'écran d'accueil »), puis ouvrez-le depuis l'icône" : "ce navigateur ne gère pas les notifications");
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") throw new Error("notifications refusées : autorisez-les dans les réglages du navigateur pour ce site");
+  const reg = await swReady; if (!reg) throw new Error("service worker indisponible");
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(VAPID_PUBLIC_KEY) });
+  return sub.toJSON();
+}
+async function pushUnsubscribe() {
+  const sub = await pushCurrent(); if (!sub) return;
+  try { await sb.rpc("push_unsubscribe", { p_endpoint: sub.endpoint }); } catch (e) {}
+  await sub.unsubscribe();
+}

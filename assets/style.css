@@ -225,3 +225,20 @@ a.use:hover{background:var(--accent-soft);color:var(--accent)}
 @keyframes toastin{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
 .toast-undo{margin-left:8px;border:0;border-radius:8px;padding:4px 10px;font:inherit;font-weight:700;background:#fff;color:#1c2230;cursor:pointer}
 nav a#undoBtn{color:var(--accent);font-weight:700}
+/* ---------- v6 : heures, apercu eleve, notifications ---------- */
+input[type=date],input[type=time]{padding:10px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:var(--text)}
+.hrow{display:grid;grid-template-columns:130px 1fr auto auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.hrow:first-child{border-top:0}
+.hrow .title{font-weight:600}
+.hrow.future{opacity:.6}
+.hrow.cancel{opacity:.55}.hrow.cancel .hdate,.hrow.cancel .hwho{text-decoration:line-through}
+.hrow.pending .hdate b{color:#a15c00}
+.hdur{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.hdur input{width:76px;text-align:center;padding:6px 8px;font-weight:700}
+.hst{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.stat b+.small{display:block;margin-top:2px}
+@media(max-width:720px){.hrow{grid-template-columns:1fr auto;row-gap:6px}.hrow .hwho{grid-column:1/-1;order:-1}.hrow .hdur{grid-column:1/-1}}
+.preview-bar{background:#fff4e0;color:#7a4500;border:1px solid #f5dfb3;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:.92rem}
+.preview-bar a{font-weight:700;margin-left:6px}
+.pushcard{background:linear-gradient(135deg,#eef3ff,#fff);border:1px solid #c9d6f7}
+a.btn.sm{text-decoration:none}
