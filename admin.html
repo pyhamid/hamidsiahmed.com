@@ -5,12 +5,17 @@
 <title>Administration · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=8">
+<link rel="stylesheet" href="assets/style.css?v=9">
+<link rel="manifest" href="manifest-admin.webmanifest">
+<meta name="theme-color" content="#1c2230">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon-admin.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Prof">
 </head>
 <body>
 <header class="top"><div class="wrap">
   <a class="brand" href="./">Hamid <span>Si Ahmed</span> · <span class="muted" style="font-weight:500">Admin</span></a>
-  <nav><a href="#" id="undoBtn" class="hidden" title="Annuler la dernière action (Ctrl+Z)">↩️ Annuler</a><a href="cours.html">Espace élève</a><a href="#" id="logout" class="hidden">Déconnexion</a></nav>
+  <nav><a href="#" id="undoBtn" class="hidden" title="Annuler la dernière action (Ctrl+Z)">↩️ Annuler</a><a href="cours.html">Espace élève</a><a href="#" id="accountBtn" class="hidden" title="Notifications, e-mails, mot de passe">⚙️ Compte</a><a href="#" id="logout" class="hidden">Déconnexion</a></nav>
 </div></header>
 <main><div class="wrap">
 
@@ -30,6 +35,7 @@
   <div class="tabs">
     <button data-tab="dash" class="active">🏠 Tableau de bord</button>
     <button data-tab="seances">📅 Séances</button>
+    <button data-tab="heures">⏱ Heures<span id="dotH"></span></button>
     <button data-tab="pub">➕ Publier</button>
     <button data-tab="items">📋 Contenus</button>
     <button data-tab="lib">📚 Bibliothèque</button>
@@ -45,6 +51,10 @@
     <div class="row"><div><h1 style="margin:0">Bonjour 👋</h1><p class="sub" style="margin:0" id="dToday"></p></div><div class="spacer"></div>
       <button class="btn ghost" onclick="showTab('seances')">➕ Nouvelle séance</button><button class="btn" onclick="showTab('pub')">➕ Publier</button></div>
     <div class="card next-course"><h2>📅 Cours aujourd'hui et demain</h2><div id="dSess"></div></div>
+    <div id="dConfirmBox" class="card hidden"><div class="row" style="margin-bottom:6px"><h2 style="margin:0">⏱ Séances à confirmer<span id="dConfN"></span></h2><div class="spacer"></div>
+      <button class="btn sm" onclick="confirmSess(pendingSess().map(s => s.id))">✔ Tout confirmer tel que prévu</button><button class="btn sm ghost" onclick="showTab('heures')">Voir mes heures →</button></div>
+      <p class="hint" style="margin-top:0">Corrigez la durée si le cours a duré plus (ou moins) longtemps : tapez <b>1h30</b>, <b>2h</b>, <b>1,5</b> ou <b>90</b>, ou utilisez −15 / +15.</p>
+      <div id="dConfirm"></div></div>
     <div class="dash-grid">
       <div class="card"><h2>🖊 À corriger<span id="dCorrN"></span></h2><div id="dCorr"></div></div>
       <div class="card"><h2>💬 Questions en attente<span id="dMsgN"></span></h2><div id="dMsgs"></div></div>
@@ -86,6 +96,29 @@
     <div class="card"><div class="row" style="margin-bottom:10px"><h2 style="margin:0">📅 Séances</h2><div class="spacer"></div>
       <div class="seg" id="sessView"><button type="button" data-v="up" class="active">À venir</button><button type="button" data-v="past">Passées</button></div></div>
       <div id="sessAdmin"></div></div>
+  </div>
+
+  <!-- HEURES -->
+  <div data-panel="heures" class="stack hidden">
+    <div class="card stack">
+      <div class="row"><h2 style="margin:0">⏱ Mes heures de cours</h2><div class="spacer"></div><span class="hint" style="margin:0">Durée réelle = ce qui compte. Par défaut, la durée prévue.</span></div>
+      <div class="seg" id="hPreset">
+        <button type="button" data-p="month" class="active">Ce mois-ci</button><button type="button" data-p="last">Mois dernier</button>
+        <button type="button" data-p="since" id="hSinceBtn">Depuis le dernier relevé</button><button type="button" data-p="week">Cette semaine</button>
+        <button type="button" data-p="year">Année scolaire</button></div>
+      <div class="grid3">
+        <div><label>Du</label><input id="hFrom" type="date"></div>
+        <div><label>Au (inclus)</label><input id="hTo" type="date"></div>
+        <div><label>Élève</label><select id="hStu"></select></div>
+      </div>
+      <div class="row"><label class="inline small"><input type="checkbox" id="hCancel" style="width:auto"> Afficher les séances annulées</label><div class="spacer"></div>
+        <button type="button" class="btn sm ghost" id="hCopy">📋 Copier le récapitulatif</button><button type="button" class="btn sm ghost" id="hCsv">⬇ Excel (CSV)</button>
+        <button type="button" class="btn sm" id="hCut" title="La prochaine fois, « Depuis le dernier relevé » partira du lendemain de cette date">📌 Relevé fait jusqu'au …</button></div>
+    </div>
+    <div id="hStats" class="grid3"></div>
+    <div id="hPerStu" class="card hidden"></div>
+    <div class="card"><div class="row" style="margin-bottom:6px"><h2 style="margin:0">Séances de la période</h2><div class="spacer"></div><button type="button" class="btn sm hidden" id="hConfirmAll">✔ Confirmer toutes les séances passées</button></div>
+      <div id="hList"></div></div>
   </div>
 
   <!-- PUBLIER -->
@@ -257,11 +290,11 @@ Puissance électrique → P = U × I"></textarea>
 </div></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js?v=5"></script>
+<script src="assets/common.js?v=6"></script>
 <script src="assets/qcm.js?v=3"></script>
 <script>
 const S = { students: [], groups: [], sg: [], subjects: [], chapters: [], items: [], iStu: [], iGrp: [], subs: [], msgs: [], anns: [], aStu: [], aGrp: [],
-  sessions: [], sStu: [], views: [], memo: [], attempts: [], settings: [], res: [], iRes: [], rStu: [] };
+  sessions: [], sStu: [], views: [], memo: [], attempts: [], settings: [], res: [], iRes: [], rStu: [], push: [] };
 KIND.memo = "Fiche à retenir";
 const KICO = { doc: "📄", devoir: "📝", qcm: "☑️", memo: "🧠" };
 const setting = (k, d) => { const r = S.settings.find(x => x.key === k); return r ? r.value : d; };
@@ -271,7 +304,7 @@ const dayLbl = d => { const x = new Date(d), t = new Date(); const k = Math.roun
 const sessEnd = s => new Date(new Date(s.starts_at).getTime() + s.duration_min * 60000);
 const sessStudents = id => S.sStu.filter(x => x.session_id === id).map(x => x.student_id);
 const sessLink = s => s.meet_link || setting("meet_link", "");
-let kind = "doc", tgt = "all", aTgt = "all", conv = null, lastNotif = null;
+let kind = "doc", tgt = "all", aTgt = "all", conv = null, lastNotif = null, PUSH_ON = false;
 const byId = (arr, id) => S[arr].find(x => x.id === id) || {};
 const nameOf = id => byId("students", id).name || "?";
 const genCode = () => { const a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; const r = crypto.getRandomValues(new Uint32Array(6)); return [...r].map(x => a[x % a.length]).join(""); };
@@ -285,14 +318,18 @@ async function start() {
   if (!session) return;
   const { data: ok } = await sb.rpc("is_admin");
   if (!ok) { await sb.auth.signOut(); showMsg($("#loginMsg"), "Ce compte n'a pas les droits d'administration."); return; }
-  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#logout").classList.remove("hidden");
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden"); $("#logout").classList.remove("hidden"); $("#accountBtn").classList.remove("hidden");
   await loadAll();
   live();
-  if ("Notification" in window && Notification.permission === "default") {
-    showMsg($("#notifBar"), "🔔 Cliquez ici pour être prévenu (notification) quand un élève rend un travail ou vous écrit.", "ok");
-    $("#notifBar").onclick = () => { Notification.requestPermission(); $("#notifBar").classList.add("hidden"); };
+  const h = location.hash.slice(1); if (h && $(`.tabs button[data-tab="${h}"]`)) showTab(h);
+  PUSH_ON = !!(await pushCurrent());
+  let dismissed = false; try { dismissed = localStorage.getItem("adminPushDismiss") === "1"; } catch (e) {}
+  if (!PUSH_ON && !dismissed && (pushSupported() || isIOS())) {
+    showMsg($("#notifBar"), "🔔 Recevoir une notification sur ce téléphone / cet ordinateur (et un e-mail) quand un élève rend un travail ou vous écrit : cliquez ici.", "ok");
+    $("#notifBar").onclick = () => { $("#notifBar").classList.add("hidden"); try { localStorage.setItem("adminPushDismiss", "1"); } catch (e) {} accountModal(); };
   }
 }
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (h && $(`.tabs button[data-tab="${h}"]`)) showTab(h); });
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault(); $("#loginMsg").classList.add("hidden");
   const { error } = await sb.auth.signInWithPassword({ email: $("#email").value.trim(), password: $("#pwd").value });
@@ -308,18 +345,19 @@ $("#logout").addEventListener("click", async e => { e.preventDefault(); await sb
 // vraiment effaces du stockage qu'a la fermeture de la page, pour pouvoir etre restaures.
 const TBL = { students: "students", groups: "groups", student_groups: "sg", subjects: "subjects", chapters: "chapters", items: "items", item_students: "iStu",
   item_groups: "iGrp", submissions: "subs", messages: "msgs", announcements: "anns", announcement_targets: "aStu", announcement_groups: "aGrp", sessions: "sessions",
-  session_students: "sStu", item_views: "views", memo_progress: "memo", quiz_attempts: "attempts", settings: "settings", resources: "res", item_resources: "iRes", resource_students: "rStu" };
+  session_students: "sStu", item_views: "views", memo_progress: "memo", quiz_attempts: "attempts", settings: "settings", resources: "res", item_resources: "iRes", resource_students: "rStu",
+  push_subscriptions: "push" };
 const PK = { student_groups: ["student_id", "group_id"], item_students: ["item_id", "student_id"], item_groups: ["item_id", "group_id"], announcement_targets: ["announcement_id", "student_id"],
   announcement_groups: ["announcement_id", "group_id"], session_students: ["session_id", "student_id"], item_views: ["item_id", "student_id"], memo_progress: ["item_id", "student_id"],
   item_resources: ["item_id", "resource_id"], resource_students: ["resource_id", "student_id"], settings: ["key"] };
 const ORDER = ["subjects", "chapters", "groups", "students", "sessions", "resources", "items", "announcements", "settings", "student_groups", "session_students", "item_students",
-  "item_groups", "item_resources", "resource_students", "announcement_targets", "announcement_groups", "submissions", "quiz_attempts", "memo_progress", "item_views", "messages"];
-const AUTO_COLS = ["seen_by_teacher", "read_by_teacher", "sha256"];           // mises a jour automatiques : pas une « action »
+  "item_groups", "item_resources", "resource_students", "announcement_targets", "announcement_groups", "submissions", "quiz_attempts", "memo_progress", "item_views", "messages", "push_subscriptions"];
+const AUTO_COLS = ["seen_by_teacher", "read_by_teacher", "sha256", "notified_at", "reminded_at", "last_ok_at"];           // mises a jour automatiques : pas une « action »
 const STUDENT_WRITES = { submissions: ["grade", "feedback", "graded_at", "corrected_resource_id", "corrected_path", "corrected_name"], messages: ["body", "item_id"],
   quiz_attempts: [], memo_progress: [], item_views: [] };                    // tables aussi ecrites par les eleves : on ne touche qu'aux colonnes du prof
 const NOUN = { items: ["Contenu", 0], resources: ["Fichier", 0], sessions: ["Séance", 1], students: ["Élève", 1], groups: ["Groupe", 0], subjects: ["Matière", 1], chapters: ["Chapitre", 0],
   announcements: ["Annonce", 1], messages: ["Message", 0], submissions: ["Correction", 1], quiz_attempts: ["Tentative", 1], resource_students: ["Accès au fichier", 0],
-  item_students: ["Destinataires", 0], item_groups: ["Destinataires", 0], settings: ["Réglages", 0], session_students: ["Élèves de la séance", 0], item_resources: ["Fichiers du contenu", 0], student_groups: ["Groupes de l'élève", 0] };
+  item_students: ["Destinataires", 0], item_groups: ["Destinataires", 0], settings: ["Réglages", 0], session_students: ["Élèves de la séance", 0], item_resources: ["Fichiers du contenu", 0], student_groups: ["Groupes de l'élève", 0], push_subscriptions: ["Appareil", 0] };
 const pkOf = t => PK[t] || ["id"];
 const keyOf = (t, r) => pkOf(t).map(c => r[c]).join("|");
 const undoStack = []; let TX = null, UNDOING = false; const pendingRemovals = [];
@@ -446,19 +484,20 @@ async function loadAll(quiet) {
       q(sb.from("sessions").select("*").order("starts_at")), q(sb.from("session_students").select("*")), q(sb.from("item_views").select("*")),
       q(sb.from("memo_progress").select("*")), q(sb.from("quiz_attempts").select("*")), q(sb.from("settings").select("*")),
       q(sb.from("resources").select("*").order("created_at", { ascending: false })), q(sb.from("item_resources").select("*")), q(sb.from("resource_students").select("*")),
+      sb.from("push_subscriptions").select("id, student_id, is_admin, user_agent, created_at, last_ok_at").order("created_at").then(r => r.error ? [] : r.data), // [] tant que setup_v6 n'est pas applique
     ]);
     const sig = JSON.stringify(r);
     if (quiet && sig === lastSig) return; // rien n'a change : on ne touche pas a l'ecran
     lastSig = sig;
     [S.students, S.groups, S.sg, S.subjects, S.chapters, S.items, S.iStu, S.iGrp, S.subs, S.msgs, S.anns, S.aStu, S.aGrp,
-     S.sessions, S.sStu, S.views, S.memo, S.attempts, S.settings, S.res, S.iRes, S.rStu] = r;
+     S.sessions, S.sStu, S.views, S.memo, S.attempts, S.settings, S.res, S.iRes, S.rStu, S.push] = r;
   } catch (err) { if (!quiet) alert("Erreur de chargement : " + err.message); return; }
   renderAll();
 }
 function renderAll() {
   fillSubjectSelects(); renderTargets("#tgtBox", tgt, "t"); renderTargets("#aBox", aTgt, "a");
   renderItems(); renderSuiviSelect(); renderSuivi(); renderConvs(); renderStudents(); renderGroups(); renderSubjects(); renderAnns(); notifs();
-  renderDash(); renderSessAdmin(); fillSessForm(); fillSessionSelect(); fillLibSelects(); renderLib(); attEd.draw();
+  renderDash(); renderSessAdmin(); fillSessForm(); fillSessionSelect(); fillLibSelects(); renderLib(); attEd.draw(); renderHours();
 }
 function notifs() {
   const nSub = S.subs.filter(s => !s.seen_by_teacher).length, nMsg = S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).length;
@@ -471,7 +510,7 @@ function notifs() {
     if (nSub > ps) toast(`📥 <b>Nouveau rendu</b> — ${esc(S.subs.filter(s => !s.seen_by_teacher).sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)).slice(0, nSub - ps).map(s => nameOf(s.student_id) + " : " + (byId("items", s.item_id).title || "")).join(", "))}`);
     if (nMsg > pm) toast(`💬 <b>Nouveau message</b> — ${esc([...new Set(S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).slice(-(nMsg - pm)).map(m => nameOf(m.student_id)))].join(", "))}`);
   }
-  if (lastNotif !== null && key !== lastNotif && nSub + nMsg > 0 && "Notification" in window && Notification.permission === "granted") {
+  if (!PUSH_ON && lastNotif !== null && key !== lastNotif && nSub + nMsg > 0 && "Notification" in window && Notification.permission === "granted") {
     new Notification("Espace cours", { body: `${nSub} nouveau(x) rendu(s), ${nMsg} message(s) non lu(s)` });
   }
   lastNotif = key;
@@ -1409,13 +1448,14 @@ $("#replyForm").addEventListener("submit", async e => {
 function renderStudents() {
   $("#stGroups").innerHTML = S.groups.length ? S.groups.map(g => `<label><input type="checkbox" class="ngchk" value="${g.id}"> ${esc(g.name)}</label>`).join("") : `<span class="small muted">Pas encore de groupe.</span>`;
   $("#stList").innerHTML = S.students.length ? `<table><tr><th>Nom</th><th>Code</th><th>Groupes</th><th></th></tr>` +
-    S.students.map(s => `<tr><td>${esc(s.name)}</td><td><span class="code">${esc(s.code)}</span></td>
+    S.students.map(s => `<tr><td>${esc(s.name)}${S.push.some(p => p.student_id === s.id) ? ` <span title="Notifications activées sur ${S.push.filter(p => p.student_id === s.id).length} appareil(s)">🔔</span>` : ""}</td><td><span class="code">${esc(s.code)}</span></td>
       <td>${S.sg.filter(x => x.student_id === s.id).map(x => `<span class="chip">${esc(byId("groups", x.group_id).name)}</span>`).join(" ") || `<span class="muted small">—</span>`}</td>
-      <td style="text-align:right;white-space:nowrap">
+      <td><div class="row" style="gap:6px;justify-content:flex-end">
+        <a class="btn sm" href="cours.html?voir=${s.id}" target="_blank" rel="noopener" title="Ouvrir son espace sans saisir son code (aperçu : rien n'est enregistré à son nom)">👁 Voir comme l'élève</a>
         <button class="btn sm ghost" onclick="copyInfo('${s.id}')">📋 Copier l'accès</button>
-        <button class="btn sm ghost" onclick="editStudent('${s.id}')">✏️ Groupes / nom</button>
+        <button class="btn sm ghost" onclick="editStudent('${s.id}')">✏️ Nom / code / groupes</button>
         <button class="btn sm ghost" onclick="newCode('${s.id}')">🔑 Nouveau code</button>
-        <button class="btn sm danger" onclick="delStudent('${s.id}')">Supprimer</button></td></tr>`).join("") + `</table>`
+        <button class="btn sm danger" onclick="delStudent('${s.id}')">Supprimer</button></div></td></tr>`).join("") + `</table>`
     : `<div class="empty">Aucun élève pour le moment.</div>`;
 }
 $("#stForm").addEventListener("submit", async e => {
@@ -1434,12 +1474,20 @@ function editStudent(id) {
   const s = byId("students", id);
   const box = openModal(`<div class="row"><h2 style="margin:0">${esc(s.name)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     <form id="esForm" class="stack" style="margin-top:12px"><div><label>Nom</label><input id="esName" type="text" value="${esc(s.name)}" required></div>
+    <div><label>Code de connexion</label><div class="row"><input id="esCode" type="text" value="${esc(s.code)}" required style="flex:1;text-transform:uppercase;letter-spacing:.1em;font-weight:700" autocomplete="off">
+      <button type="button" class="btn sm ghost" id="esGen">🎲 Générer</button></div>
+      <div class="hint">Lettres et chiffres, 4 à 20 caractères. Choisissez-en un facile à retenir (ex. LUCAS2026). Si vous le changez, l'élève devra se reconnecter avec le nouveau.</div></div>
     <div><label>Groupes</label><div class="checks">${S.groups.map(g => `<label><input type="checkbox" class="esg" value="${g.id}" ${S.sg.some(x => x.student_id === id && x.group_id === g.id) ? "checked" : ""}> ${esc(g.name)}</label>`).join("") || `<span class="small muted">Pas encore de groupe.</span>`}</div></div>
     <div><button class="btn" type="submit">Enregistrer</button></div><div id="esMsg" class="msg hidden"></div></form>`);
+  $("#esGen", box).onclick = () => $("#esCode", box).value = genCode();
   $("#esForm", box).onsubmit = async e => {
     e.preventDefault();
     try {
-      await q(sb.from("students").update({ name: $("#esName", box).value.trim().replace(/\s+/g, " ") }).eq("id", id));
+      const code = $("#esCode", box).value.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!/^[A-Z0-9]{4,20}$/.test(code)) throw new Error("le code doit contenir 4 à 20 lettres ou chiffres (sans espace ni accent)");
+      const name = $("#esName", box).value.trim().replace(/\s+/g, " ");
+      if (S.students.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) throw new Error("un autre élève porte déjà ce nom");
+      await q(sb.from("students").update({ name, code }).eq("id", id));
       await q(sb.from("student_groups").delete().eq("student_id", id));
       const gs = $$(".esg:checked", box).map(c => c.value);
       if (gs.length) await q(sb.from("student_groups").insert(gs.map(g => ({ student_id: id, group_id: g }))));
@@ -1507,6 +1555,10 @@ function renderDash() {
   const now = new Date(), in2 = new Date(); in2.setDate(in2.getDate() + 2); in2.setHours(0, 0, 0, 0);
   const soon = S.sessions.filter(s => s.status === "planned" && sessEnd(s) > now && new Date(s.starts_at) < in2);
   $("#dSess").innerHTML = soon.length ? soon.map(s => sessRow(s, true)).join("") : `<div class="empty">Aucun cours aujourd'hui ni demain.</div>`;
+  const pend = pendingSess();
+  $("#dConfirmBox").classList.toggle("hidden", !pend.length);
+  $("#dConfN").innerHTML = pend.length ? `<span class="dot">${pend.length}</span>` : "";
+  $("#dConfirm").innerHTML = pend.slice(0, 12).map(s => hRow(s)).join("") + (pend.length > 12 ? `<div class="small muted" style="padding-top:8px">… et ${pend.length - 12} autre(s) dans l'onglet ⏱ Heures.</div>` : "");
   // a corriger : devoirs rendus non corriges
   const corr = S.subs.filter(x => !x.graded_at && byId("items", x.item_id).kind === "devoir").sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at));
   $("#dCorrN").innerHTML = corr.length ? `<span class="dot">${corr.length}</span>` : "";
@@ -1549,7 +1601,7 @@ function sessRow(s, compact) {
   const nIt = S.items.filter(i => i.session_id === s.id).length, link = sessLink(s);
   const st = s.status === "cancelled" ? `<span class="pill late">Annulée</span>` : s.status === "done" ? `<span class="pill done">Faite</span>` : sessEnd(s) < new Date() ? `<span class="pill wait">À clôturer</span>` : `<span class="pill todo">Prévue</span>`;
   return `<div class="sess"><div class="row">
-      <div style="min-width:0"><div class="sess-date">${dayLbl(s.starts_at)} · ${hm(s.starts_at)} – ${hm(sessEnd(s))} ${s.series_id ? `<span class="small muted" title="Séance fixe">🔁</span>` : ""}</div>${compact ? "" : seriesInfo(s)}
+      <div style="min-width:0"><div class="sess-date">${dayLbl(s.starts_at)} · ${hm(s.starts_at)} – ${hm(sessEnd(s))} ${s.series_id ? `<span class="small muted" title="Séance fixe">🔁</span>` : ""}${s.actual_min != null && s.actual_min !== s.duration_min ? ` <span class="pill done" title="Durée réelle (prévu ${fmtH(s.duration_min)})">⏱ ${fmtH(s.actual_min)}</span>` : ""}</div>${compact ? "" : seriesInfo(s)}
         <div class="small muted">👤 ${names}${[byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).length ? " · " + esc([byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ")) : ""} · ${nIt} contenu(s)</div></div>
       <div class="spacer"></div>${st}
       ${link && s.status === "planned" ? `<a class="btn sm" style="background:#1b7f4b" href="${esc(link)}" target="_blank" rel="noopener">🎥 Meet</a>` : ""}
@@ -1617,13 +1669,23 @@ function sessNotes(id) {
   const box = openModal(`<div class="row"><h2 style="margin:0">📝 Séance du ${dayLbl(s.starts_at).toLowerCase()} à ${hm(s.starts_at)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     <p class="small muted">👤 ${sessStudents(id).map(nameOf).join(", ")}</p>
     <form id="snForm" class="stack"><div><label>Ce qu'on a fait (visible par l'élève)</label><textarea id="snNotes" placeholder="ex. Loi d'Ohm, exercices 1 à 4. À faire : exercices 5 et 6.">${esc(s.notes || "")}</textarea></div>
-      <div><label>Statut</label><select id="snStatus"><option value="planned">Prévue</option><option value="done">Faite</option><option value="cancelled">Annulée</option></select></div>
+      <div class="grid2"><div><label>Statut</label><select id="snStatus"><option value="planned">Prévue</option><option value="done">Faite</option><option value="cancelled">Annulée</option></select></div>
+        <div><label>Durée réellement faite <span class="muted small">(prévu : ${fmtH(s.duration_min)})</span></label>
+          <div class="hdur"><button type="button" class="btn sm ghost" data-d="-15">−15</button><input id="snDur" type="text" value="${durTxt(realMin(s))}"><button type="button" class="btn sm ghost" data-d="15">+15</button><button type="button" class="btn sm ghost" data-d="30">+30</button></div>
+          <div class="hint">ex. 1h30, 2h, 1,5 ou 90 (minutes)</div></div></div>
       <div><label>Contenus de la séance (${its.length})</label>${its.length ? its.map(i => `<div class="small">• ${KIND[i.kind]} : ${esc(i.title)}</div>`).join("") : `<div class="small muted">Aucun contenu pour l'instant.</div>`}
         <button type="button" class="btn sm ghost" style="margin-top:8px" onclick="addToSession('${id}')">➕ Ajouter un fichier / exercice / correction / QCM à cette séance</button></div>
       <div><button class="btn" type="submit">Enregistrer</button></div><div id="snMsg" class="msg hidden"></div></form>`);
   $("#snStatus", box).value = s.status === "planned" && sessEnd(s) < new Date() ? "done" : s.status;
+  $$(".hdur [data-d]", box).forEach(b => b.onclick = () => { const m = parseDur($("#snDur", box).value); $("#snDur", box).value = durTxt(Math.max(0, (isNaN(m) || m == null ? realMin(s) : m) + +b.dataset.d)); $("#snStatus", box).value = "done"; });
   $("#snForm", box).onsubmit = async e => { e.preventDefault();
-    try { await q(sb.from("sessions").update({ notes: $("#snNotes", box).value.trim() || null, status: $("#snStatus", box).value }).eq("id", id)); closeModal(); loadAll(); }
+    try {
+      const m = parseDur($("#snDur", box).value);
+      if (m != null && (isNaN(m) || m > 720)) throw new Error("durée non comprise : écrivez par ex. 1h30, 2h, 1,5 ou 90");
+      const patch = { notes: $("#snNotes", box).value.trim() || null, status: $("#snStatus", box).value };
+      patch.actual_min = m != null ? m : (s.actual_min ?? null);
+      if (patch.status === "done" && patch.actual_min == null) patch.actual_min = s.duration_min;
+      await q(sb.from("sessions").update(patch).eq("id", id)); closeModal(); loadAll(); }
     catch (err) { showMsg($("#snMsg", box), "Erreur : " + err.message); } };
 }
 function addToSession(id) {
@@ -1688,6 +1750,190 @@ $("#pSession").addEventListener("change", () => {
   const stu = sessStudents(s.id); $$("#tgtBox .tchk").forEach(c => c.checked = stu.includes(c.value));
   if (s.subject_id) { $("#pSubject").value = s.subject_id; fillChapters(s.chapter_id); }
 });
+
+// ================= ⏱ HEURES : durée réelle des séances + totaux sur une période =================
+// Une séance compte si elle est passée (ou marquée « faite ») et n'est pas annulée.
+// Sa durée = durée réelle (actual_min) si elle a été saisie, sinon la durée prévue.
+const realMin = s => s.actual_min ?? s.duration_min;
+const fmtH = m => { m = Math.round(m || 0); const h = Math.floor(m / 60), r = m % 60; return h ? `${h} h${r ? " " + String(r).padStart(2, "0") : ""}` : `${r} min`; };
+const fmtDec = m => String(Math.round(m / 60 * 100) / 100).replace(".", ",") + " h";
+const durTxt = m => `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}`;
+// « 1h30 », « 1 h 30 », « 2h », « 1,5 » (heures), « 90 » (minutes), « 1:30 »  ->  minutes
+function parseDur(v) {
+  v = String(v ?? "").trim().toLowerCase().replace(",", ".").replace(/\s+/g, ""); if (!v) return null; let m;
+  if ((m = v.match(/^(\d+(?:\.\d+)?)h(\d{1,2})?(?:min|mn|m)?$/))) return Math.round(+m[1] * 60 + (+m[2] || 0));
+  if ((m = v.match(/^(\d{1,2}):(\d{2})$/))) return +m[1] * 60 + +m[2];
+  if ((m = v.match(/^(\d+(?:\.\d+)?)(min|mn|m)?$/))) { const n = +m[1]; return m[2] || n > 10 ? Math.round(n) : Math.round(n * 60); }
+  return NaN;
+}
+const ymd = d => toLocalInput(d).slice(0, 10);
+const sessPast = s => sessEnd(s) <= new Date() || s.status === "done";
+const counts = s => s.status !== "cancelled" && sessPast(s);
+const pendingSess = () => S.sessions.filter(s => s.status === "planned" && sessEnd(s) <= new Date() && new Date(s.starts_at) > new Date(Date.now() - 90 * 864e5))
+  .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+let hPreset = "month";
+function presetRange(p) {
+  const t = new Date(), y = t.getFullYear(), mo = t.getMonth();
+  if (p === "month") return [new Date(y, mo, 1), new Date(y, mo + 1, 0)];
+  if (p === "last") return [new Date(y, mo - 1, 1), new Date(y, mo, 0)];
+  if (p === "week") { const d = new Date(y, mo, t.getDate() - ((t.getDay() + 6) % 7)); return [d, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6)]; }
+  if (p === "year") return [new Date(mo >= 8 ? y : y - 1, 8, 1), t];
+  if (p === "since") { const c = setting("hours_since", null); return [c ? new Date(c + "T00:00") : new Date(y, mo, 1), t]; }
+  return null;
+}
+function applyPreset(p) {
+  hPreset = p; const r = presetRange(p); if (!r) return;
+  $("#hFrom").value = ymd(r[0]); $("#hTo").value = ymd(r[1]);
+  $$("#hPreset button").forEach(b => b.classList.toggle("active", b.dataset.p === p));
+  renderHours();
+}
+seg("#hPreset", "p", applyPreset);
+["#hFrom", "#hTo"].forEach(k => $(k).addEventListener("change", () => { hPreset = "custom"; $$("#hPreset button").forEach(b => b.classList.remove("active")); renderHours(); }));
+$("#hStu").addEventListener("change", renderHours); $("#hCancel").addEventListener("change", renderHours);
+function hRange() {
+  if (!$("#hFrom").value) { const r = presetRange(hPreset) || presetRange("month"); $("#hFrom").value = ymd(r[0]); $("#hTo").value = ymd(r[1]); }
+  return [new Date($("#hFrom").value + "T00:00"), new Date(($("#hTo").value || ymd(new Date())) + "T23:59:59")];
+}
+function hSessions() {
+  const [from, to] = hRange(), stu = $("#hStu").value;
+  return S.sessions.filter(s => { const d = new Date(s.starts_at); return d >= from && d <= to && (!stu || sessStudents(s.id).includes(stu)); })
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+}
+// une ligne de séance avec la durée modifiable directement
+function hRow(s) {
+  const past = sessPast(s), canc = s.status === "cancelled", pending = s.status === "planned" && sessEnd(s) <= new Date();
+  const what = [byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ");
+  const d = new Date(s.starts_at);
+  const st = canc ? `<span class="pill late">Annulée</span>` : pending ? `<button class="btn sm" onclick="confirmSess(['${s.id}'])" title="Confirmer la séance avec la durée affichée">✔ Faite</button>`
+    : s.status === "done" ? `<span class="pill done">Faite</span>` : `<span class="pill todo">À venir</span>`;
+  return `<div class="hrow ${canc ? "cancel" : past ? "" : "future"} ${pending ? "pending" : ""}">
+    <div class="hdate"><b>${d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</b><div class="small muted">${hm(s.starts_at)} – ${hm(sessEnd(s))}</div></div>
+    <div class="hwho"><div class="title">${esc(sessStudents(s.id).map(nameOf).join(", ") || "—")}</div>${what ? `<div class="small muted">${esc(what)}</div>` : ""}</div>
+    <div class="hdur">${canc || !past ? `<span class="small muted">prévu ${fmtH(s.duration_min)}</span>`
+      : `<button class="btn sm ghost" onclick="bumpReal('${s.id}',-15)" title="−15 min">−15</button><input type="text" value="${durTxt(realMin(s))}" title="Durée réelle (prévu ${fmtH(s.duration_min)})" onchange="setReal('${s.id}', this.value, this)" onkeydown="if(event.key==='Enter')this.blur()"><button class="btn sm ghost" onclick="bumpReal('${s.id}',15)" title="+15 min">+15</button>`}
+      ${past && !canc && s.actual_min != null && s.actual_min !== s.duration_min ? `<span class="small" style="color:var(--ok);font-weight:700" title="Prévu ${fmtH(s.duration_min)}">${s.actual_min > s.duration_min ? "+" : "−"}${fmtH(Math.abs(s.actual_min - s.duration_min))}</span>` : ""}</div>
+    <div class="hst">${st}<button class="btn sm ghost" onclick="sessNotes('${s.id}')" title="Compte-rendu / statut">📝</button></div></div>`;
+}
+async function setReal(id, v, input) {
+  const m = typeof v === "number" ? v : parseDur(v);
+  if (m == null || isNaN(m) || m < 0 || m > 720) { toast("⚠️ Durée non comprise : écrivez par ex. <b>1h30</b>, <b>2h</b>, <b>1,5</b> ou <b>90</b>"); if (input) input.value = durTxt(realMin(byId("sessions", id))); return; }
+  try { await q(sb.from("sessions").update({ actual_min: m, status: "done" }).eq("id", id)); await loadAll(true); } catch (err) { alert("Erreur : " + err.message); }
+}
+function bumpReal(id, d) { setReal(id, Math.max(0, realMin(byId("sessions", id)) + d)); }
+async function confirmSess(ids) {
+  const list = ids.map(id => byId("sessions", id)).filter(s => s.id && s.status === "planned");
+  if (!list.length) return;
+  if (list.length > 1 && !confirm(`Confirmer ${list.length} séance(s) comme faites, avec leur durée prévue ? (vous pourrez corriger chaque durée ensuite)`)) return;
+  try {
+    const byDur = {}; list.forEach(s => (byDur[realMin(s)] = byDur[realMin(s)] || []).push(s.id));
+    for (const m in byDur) await q(sb.from("sessions").update({ status: "done", actual_min: +m }).in("id", byDur[m]));
+    await loadAll(true);
+  } catch (err) { alert("Erreur : " + err.message); }
+}
+function renderHours() {
+  if (!$("#hList")) return;
+  const cs = $("#hStu").value;
+  $("#hStu").innerHTML = `<option value="">Tous les élèves</option>` + S.students.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join(""); $("#hStu").value = S.students.some(x => x.id === cs) ? cs : "";
+  const cut = setting("hours_since", null);
+  $("#hSinceBtn").textContent = cut ? `Depuis le ${new Date(cut + "T00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} (dernier relevé)` : "Depuis le dernier relevé";
+  if (hPreset !== "custom") { const r = presetRange(hPreset); if (r && document.activeElement !== $("#hFrom") && document.activeElement !== $("#hTo")) { $("#hFrom").value = ymd(r[0]); $("#hTo").value = ymd(r[1]); } }
+  const [, to] = hRange();
+  $("#hCut").textContent = `📌 Relevé fait jusqu'au ${to.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}`;
+  const all = hSessions(), done = all.filter(counts), pend = done.filter(s => s.status === "planned"), fut = all.filter(s => s.status !== "cancelled" && !sessPast(s));
+  const tot = done.reduce((a, s) => a + realMin(s), 0), planned = done.reduce((a, s) => a + s.duration_min, 0), futMin = fut.reduce((a, s) => a + s.duration_min, 0);
+  $("#dotH").innerHTML = pendingSess().length ? `<span class="dot">${pendingSess().length}</span>` : "";
+  $("#hStats").innerHTML = `<div class="stat"><span class="small muted">Heures faites</span><b style="font-size:1.8rem">${fmtH(tot)}</b><span class="small muted">soit ${fmtDec(tot)} · ${done.length} séance(s)${tot !== planned ? ` · prévu ${fmtH(planned)} (${tot > planned ? "+" : "−"}${fmtH(Math.abs(tot - planned))})` : ""}</span></div>
+    <div class="stat"><span class="small muted">À confirmer</span><b style="color:${pend.length ? "#a15c00" : "inherit"}">${pend.length}</b><span class="small muted">${pend.length ? "comptée(s) avec la durée prévue" : "tout est confirmé ✔"}</span></div>
+    <div class="stat"><span class="small muted">Encore prévu sur la période</span><b>${fmtH(futMin)}</b><span class="small muted">${fut.length} séance(s) à venir</span></div>`;
+  $("#hConfirmAll").classList.toggle("hidden", !pend.length);
+  $("#hConfirmAll").onclick = () => confirmSess(pend.map(s => s.id));
+  // total par eleve (une seance de groupe compte pour chaque eleve present)
+  const per = {}; done.forEach(s => sessStudents(s.id).forEach(sid => { if (cs && sid !== cs) return; (per[sid] = per[sid] || { m: 0, n: 0 }); per[sid].m += realMin(s); per[sid].n++; }));
+  const ids = Object.keys(per).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  $("#hPerStu").classList.toggle("hidden", !ids.length || !!cs);
+  $("#hPerStu").innerHTML = `<h2>Par élève</h2>` + ids.map(sid => `<div class="list-row"><b style="min-width:170px">${esc(nameOf(sid))}</b><span>${fmtH(per[sid].m)} <span class="small muted">(${fmtDec(per[sid].m)})</span></span><span class="small muted">${per[sid].n} séance(s)</span><div class="spacer"></div><button class="btn sm ghost" onclick="$('#hStu').value='${sid}';renderHours()">Voir le détail</button></div>`).join("");
+  const shown = all.filter(s => $("#hCancel").checked || s.status !== "cancelled");
+  $("#hList").innerHTML = shown.length ? shown.map(hRow).join("") : `<div class="empty">Aucune séance sur cette période.</div>`;
+}
+function hRecapText() {
+  const [from, to] = hRange(), cs = $("#hStu").value, done = hSessions().filter(counts), tot = done.reduce((a, s) => a + realMin(s), 0);
+  const f = d => d.toLocaleDateString("fr-FR");
+  return [`Relevé des heures de cours du ${f(from)} au ${f(to)}${cs ? " — " + nameOf(cs) : ""}`, "",
+    ...done.map(s => `${new Date(s.starts_at).toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" })} ${hm(s.starts_at)} · ${fmtH(realMin(s))}${cs ? "" : " · " + sessStudents(s.id).map(nameOf).join(", ")}${[byId("subjects", s.subject_id).name, s.title].filter(Boolean).length ? " · " + [byId("subjects", s.subject_id).name, s.title].filter(Boolean).join(" · ") : ""}`),
+    "", `Total : ${fmtH(tot)} (${fmtDec(tot)}) — ${done.length} séance(s)`].join("\n");
+}
+$("#hCopy").onclick = async () => { const t = hRecapText(); try { await navigator.clipboard.writeText(t); toast("📋 Récapitulatif copié"); } catch (e) { prompt("Copiez ce texte :", t); } };
+$("#hCsv").onclick = () => {
+  const [from, to] = hRange(), rows = hSessions().filter(s => $("#hCancel").checked || s.status !== "cancelled");
+  const c = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [["Date", "Début", "Fin prévue", "Élève(s)", "Matière", "Chapitre", "Titre", "Prévu (min)", "Réel (min)", "Réel (h)", "Statut"].map(c).join(";"),
+    ...rows.map(s => [new Date(s.starts_at).toLocaleDateString("fr-FR"), hm(s.starts_at), hm(sessEnd(s)), sessStudents(s.id).map(nameOf).join(", "), byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title,
+      s.duration_min, counts(s) ? realMin(s) : "", counts(s) ? String(Math.round(realMin(s) / 60 * 100) / 100).replace(".", ",") : "",
+      s.status === "cancelled" ? "Annulée" : s.status === "done" ? "Faite" : sessPast(s) ? "À confirmer" : "À venir"].map(c).join(";"))];
+  const tot = rows.filter(counts).reduce((a, s) => a + realMin(s), 0);
+  lines.push("", [c("TOTAL"), "", "", "", "", "", "", "", tot, c(String(Math.round(tot / 60 * 100) / 100).replace(".", ","))].join(";"));
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+  a.download = `heures_${ymd(from)}_${ymd(to)}${$("#hStu").value ? "_" + safeName(nameOf($("#hStu").value)) : ""}.csv`; a.click();
+};
+$("#hCut").onclick = async () => {
+  const [, to] = hRange(), next = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
+  if (!confirm(`Noter que le relevé est fait jusqu'au ${to.toLocaleDateString("fr-FR")} inclus ?\nLe bouton « Depuis le dernier relevé » partira ensuite du ${next.toLocaleDateString("fr-FR")}.`)) return;
+  try { await q(sb.from("settings").upsert([{ key: "hours_since", value: ymd(next) }])); await loadAll(true); toast("📌 Relevé enregistré"); } catch (err) { alert("Erreur : " + err.message); }
+};
+
+// ================= ⚙️ COMPTE : notifications (téléphone + e-mail) et mot de passe =================
+const devName = ua => { ua = ua || ""; const os = /iphone/i.test(ua) ? "iPhone" : /ipad/i.test(ua) ? "iPad" : /android/i.test(ua) ? "Android" : /mac os/i.test(ua) ? "Mac" : /windows/i.test(ua) ? "Windows" : "Appareil";
+  const br = /edg\//i.test(ua) ? "Edge" : /firefox/i.test(ua) ? "Firefox" : /chrome|crios/i.test(ua) ? "Chrome" : /safari/i.test(ua) ? "Safari" : ""; return os + (br ? " · " + br : ""); };
+async function accountModal() {
+  const box = openModal(`<div class="row"><h2 style="margin:0">⚙️ Mon compte</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <div class="stack" style="margin-top:14px">
+      <div class="card" style="background:var(--bg)"><h2 style="font-size:1.05rem">🔔 Notifications sur cet appareil</h2><div id="acPush"></div></div>
+      <div class="card" style="background:var(--bg)"><h2 style="font-size:1.05rem">✉️ E-mails</h2>
+        <label class="inline"><input type="checkbox" id="acMail" style="width:auto" ${setting("notify_email", true) !== false ? "checked" : ""}> Recevoir aussi un e-mail à chaque rendu, QCM terminé ou message d'élève</label>
+        <div class="row" style="margin-top:10px"><button type="button" class="btn sm ghost" id="acTest">📨 Envoyer un test (notification + e-mail)</button></div><div id="acTestMsg" class="msg hidden"></div></div>
+      <div class="card" style="background:var(--bg)"><h2 style="font-size:1.05rem">📱 Appareils qui reçoivent les notifications</h2><div id="acDev"></div>
+        <p class="hint">Les élèves activent les notifications depuis leur espace (bandeau « 🔔 Être prévenu sur ce téléphone »). Ils reçoivent : nouveau contenu, message du professeur, annonce et rappel 1 h avant le cours.</p></div>
+      <form id="acPwd" class="card stack" style="background:var(--bg)"><h2 style="font-size:1.05rem;margin:0">🔑 Changer mon mot de passe</h2>
+        <div class="grid2"><input id="acP1" type="password" placeholder="Nouveau mot de passe (8 caractères min.)" autocomplete="new-password" required><input id="acP2" type="password" placeholder="Confirmer" autocomplete="new-password" required></div>
+        <div><button class="btn sm" type="submit">Enregistrer le mot de passe</button></div><div id="acPMsg" class="msg hidden"></div></form>
+    </div>`);
+  const drawDev = () => { $("#acDev", box).innerHTML = S.push.length ? S.push.map(p => `<div class="list-row"><b>${p.is_admin ? "👨‍🏫 Moi" : esc(nameOf(p.student_id))}</b><span class="small muted">${esc(devName(p.user_agent))} · depuis le ${fmtDate(p.created_at)}${p.last_ok_at ? " · dernier envoi " + dayLbl(p.last_ok_at).toLowerCase() : ""}</span><div class="spacer"></div>
+      <button type="button" class="btn sm danger" data-del="${p.id}">Retirer</button></div>`).join("") : `<div class="small muted">Aucun appareil pour l'instant.</div>`;
+    $$("[data-del]", box).forEach(b => b.onclick = async () => { try { await q(sb.from("push_subscriptions").delete().eq("id", b.dataset.del)); await loadAll(true); drawDev(); } catch (err) { alert("Erreur : " + err.message); } }); };
+  const drawPush = async () => {
+    const el = $("#acPush", box), cur = await pushCurrent(); PUSH_ON = !!cur;
+    if (cur) { el.innerHTML = `<div class="row"><span class="pill done">✔ Activées sur cet appareil</span><div class="spacer"></div><button type="button" class="btn sm ghost" id="acOff">Désactiver ici</button></div>`;
+      $("#acOff", box).onclick = async () => { await pushUnsubscribe(); await loadAll(true); drawPush(); drawDev(); }; return; }
+    if (!pushSupported()) { el.innerHTML = `<p class="small" style="margin:0">${isIOS() ? "Sur iPhone / iPad : touchez <b>Partager ⬆︎</b> → <b>« Sur l'écran d'accueil »</b>, ouvrez « Prof » depuis la nouvelle icône, reconnectez-vous une fois, puis revenez ici." : "Ce navigateur ne gère pas les notifications. Utilisez Chrome, Edge, Firefox ou Safari récent."}</p>`; return; }
+    el.innerHTML = `<p class="small" style="margin:0 0 10px">Recevez une notification (même page fermée) quand un élève rend un devoir, termine un QCM ou vous écrit.</p><button type="button" class="btn" id="acOn">🔔 Activer sur cet appareil</button><div id="acMsg" class="msg hidden"></div>`;
+    $("#acOn", box).onclick = async () => {
+      try { const sub = await pushSubscribe(); await q(sb.rpc("admin_push_subscribe", { p_sub: sub, p_ua: navigator.userAgent })); await loadAll(true); drawPush(); drawDev(); }
+      catch (err) { showMsg($("#acMsg", box), "Impossible d'activer : " + (err.message || err)); }
+    };
+  };
+  drawPush(); drawDev();
+  $("#acMail", box).onchange = async e => { try { await q(sb.from("settings").upsert([{ key: "notify_email", value: e.target.checked }])); } catch (err) { alert("Erreur : " + err.message); } };
+  $("#acTest", box).onclick = async () => {
+    const m = $("#acTestMsg", box); showMsg(m, "Envoi…", "ok");
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      const r = await fetch(NOTIFY_URL, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ test: true, email: $("#acMail", box).checked }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "la fonction « notify » ne répond pas (est-elle déployée ?)");
+      showMsg(m, `Notification envoyée à ${j.push}/${j.devices} appareil(s)${j.email === null ? "" : j.email ? " · e-mail envoyé ✔" : " · ⚠️ e-mail non envoyé (clé RESEND_API_KEY ?)"}.`, j.push || j.email ? "ok" : "err");
+    } catch (err) { showMsg(m, "Erreur : " + err.message); }
+  };
+  $("#acPwd", box).onsubmit = async e => { e.preventDefault();
+    const p1 = $("#acP1", box).value, p2 = $("#acP2", box).value;
+    if (p1.length < 8) return showMsg($("#acPMsg", box), "8 caractères minimum.");
+    if (p1 !== p2) return showMsg($("#acPMsg", box), "Les deux mots de passe sont différents.");
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if (error) return showMsg($("#acPMsg", box), "Erreur : " + error.message);
+    showMsg($("#acPMsg", box), "Mot de passe modifié ✔", "ok"); $("#acP1", box).value = $("#acP2", box).value = "";
+  };
+}
+$("#accountBtn").addEventListener("click", e => { e.preventDefault(); accountModal(); });
 
 // ---------- A retenir : apercu des cartes + suivi ----------
 $("#cExample").onclick = () => { if (!$("#cText").value.trim() || confirm("Remplacer le texte actuel par l'exemple ?")) { $("#cText").value = QCM.CARDS_EXAMPLE; cardStatus(); } };

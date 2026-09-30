@@ -5,7 +5,12 @@
 <title>Espace cours · Hamid Si Ahmed</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=8">
+<link rel="stylesheet" href="assets/style.css?v=9">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f4fd1">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mes cours">
 </head>
 <body>
 <header class="top"><div class="wrap">
@@ -26,6 +31,7 @@
   </section>
 
   <section id="space" class="hidden">
+    <div id="previewBar" class="preview-bar hidden"></div>
     <div class="row" style="margin-bottom:18px">
       <div><h1 id="hello"></h1><p class="sub" style="margin:0" id="today"></p></div>
       <div class="spacer"></div>
@@ -44,6 +50,7 @@
     <!-- ACCUEIL -->
     <div data-panel="home" class="stack">
       <div id="nextCourse"></div>
+      <div id="pushBox"></div>
       <div id="annBox" class="card hidden"><h2>📢 Annonces</h2><div id="anns"></div></div>
       <div class="dash-grid">
         <div class="card"><h2>✅ À faire</h2><div id="todo"></div></div>
@@ -88,7 +95,7 @@
 <footer>© <span id="y"></span> Hamid Si Ahmed</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="assets/common.js?v=5"></script>
+<script src="assets/common.js?v=6"></script>
 <script src="assets/qcm.js?v=3"></script>
 <script>
 $("#y").textContent = new Date().getFullYear();
@@ -105,18 +112,37 @@ const hm = d => new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minut
 const endOf = s => new Date(new Date(s.starts_at).getTime() + s.duration_min * 60000);
 
 // ---------- Connexion ----------
+// ---------- Mode aperçu professeur : cours.html?voir=<id de l'eleve> (reserve a l'admin connecte) ----------
+const PREVIEW = new URLSearchParams(location.search).get("voir");
+if (PREVIEW) {
+  // en apercu, rien n'est enregistre au nom de l'eleve (vu, messages lus, rendus, QCM…)
+  const rpc0 = sb.rpc.bind(sb), READ = ["student_space", "student_file", "is_admin"];
+  sb.rpc = (fn, args) => READ.includes(fn) ? rpc0(fn, args)
+    : Promise.resolve({ data: null, error: { message: "Mode aperçu professeur : rien n'est enregistré au nom de l'élève." } });
+}
+// ---------- Rester connecte : l'acces est garde sur cet appareil jusqu'a « Se deconnecter » ----------
+const saved = {
+  get() { try { return JSON.parse(localStorage.getItem("eleve") || sessionStorage.getItem("eleve") || "null"); } catch (e) { return null; } },
+  set(v) { if (PREVIEW) return; try { localStorage.setItem("eleve", JSON.stringify(v)); sessionStorage.removeItem("eleve"); } catch (e) {} },
+  clear() { if (PREVIEW) return; try { localStorage.removeItem("eleve"); sessionStorage.removeItem("eleve"); } catch (e) {} },
+};
 async function login(name, code, silent) {
+  name = String(name || "").trim().replace(/\s+/g, " "); code = String(code || "").trim().toUpperCase();
   const btn = $("#loginBtn"); btn.disabled = true;
   const { data: res, error } = await sb.rpc("student_space", { p_name: name, p_code: code });
   btn.disabled = false;
   if (error || !res) {
     if (!silent) showMsg($("#loginMsg"), error ? "Erreur de connexion, réessayez." : "Nom ou code incorrect. Vérifiez l'orthographe de votre nom et votre code.");
-    try { sessionStorage.removeItem("eleve"); } catch (e) {}
+    if (!error) saved.clear();            // code change par le professeur : on redemande
+    else if (silent && !me) showMsg($("#loginMsg"), "Connexion impossible pour le moment (réseau ?). Réessayez dans un instant.");
     return false;
   }
+  const first = !me;
   me = { name, code };
-  try { sessionStorage.setItem("eleve", JSON.stringify(me)); } catch (e) {}
-  lastSig = JSON.stringify(res); data = res; render(); startLive(); return true;
+  saved.set(me);
+  lastSig = JSON.stringify(res); data = res; render(); startLive();
+  if (first) { const h = location.hash.slice(1); if (h && $(`.tabs button[data-tab="${h}"]`)) showTab(h); }
+  return true;
 }
 // ---------- Mises a jour automatiques (sans recharger la page) ----------
 let lastSig = null, liveOn = false;
@@ -234,7 +260,7 @@ function render() {
   $("#login").classList.add("hidden"); $("#space").classList.remove("hidden");
   $("#hello").textContent = "Bonjour " + data.name.split(" ")[0] + " 👋";
   $("#today").textContent = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  renderBadges(); renderHome(); renderSessions(); renderFolders(); renderDevoirs(); renderMemos(); renderThread();
+  renderBadges(); renderHome(); renderSessions(); renderFolders(); renderDevoirs(); renderMemos(); renderThread(); renderPush();
   clearInterval(tick); tick = setInterval(() => { renderNext(); maybeReloadForLink(); }, 30000);
 }
 function renderBadges() {
@@ -557,8 +583,59 @@ $("#loginForm").addEventListener("submit", e => {
   e.preventDefault(); $("#loginMsg").classList.add("hidden");
   login($("#name").value, $("#code").value);
 });
-$("#logout").addEventListener("click", () => { try { sessionStorage.removeItem("eleve"); } catch (e) {} location.reload(); });
-try { const s = JSON.parse(sessionStorage.getItem("eleve") || "null"); if (s) login(s.name, s.code, true); } catch (e) {}
+$("#logout").addEventListener("click", async () => {
+  if (PREVIEW) { location.href = "admin.html"; return; }
+  if (!confirm("Se déconnecter de cet appareil ? Il faudra ressaisir votre nom et votre code.")) return;
+  try { await pushUnsubscribe(); } catch (e) {}
+  saved.clear(); location.href = "cours.html";
+});
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (me && h && $(`.tabs button[data-tab="${h}"]`)) showTab(h); });
+
+// ---------- 🔔 Notifications sur le telephone ----------
+async function renderPush() {
+  const el = $("#pushBox"); if (!el) return;
+  let dismissed = false; try { dismissed = localStorage.getItem("pushDismiss") === "1"; } catch (e) {}
+  if (PREVIEW || dismissed) { el.innerHTML = ""; return; }
+  if (await pushCurrent()) { el.innerHTML = ""; return; }                     // deja active : rien a afficher
+  if (pushSupported() && Notification.permission === "denied") { el.innerHTML = ""; return; }
+  const ios = isIOS() && !isStandalone() && !pushSupported();
+  el.innerHTML = `<div class="card pushcard"><div class="row" style="align-items:flex-start">
+      <div style="flex:1;min-width:220px"><b>🔔 Être prévenu sur ce téléphone</b>
+        <div class="small muted" style="margin-top:4px">${ios
+          ? "Sur iPhone : touchez <b>Partager</b> <span style='font-size:1.1em'>⬆︎</span> puis <b>« Sur l'écran d'accueil »</b>. Ouvrez ensuite « Mes cours » depuis l'icône et revenez ici pour activer les notifications."
+          : "Nouveau cours, devoir, message du professeur, rappel avant le cours… Vous restez connecté(e) : plus besoin de retaper votre code."}</div></div>
+      ${ios ? "" : `<button class="btn" id="pushOn">Activer les notifications</button>`}
+      <button class="btn sm ghost" id="pushNo" title="Ne plus afficher">✕</button></div><div id="pushMsg" class="msg hidden"></div></div>`;
+  $("#pushNo").onclick = () => { try { localStorage.setItem("pushDismiss", "1"); } catch (e) {} el.innerHTML = ""; };
+  const on = $("#pushOn"); if (on) on.onclick = async () => {
+    on.disabled = true;
+    try {
+      const sub = await pushSubscribe();
+      const { data: ok, error } = await sb.rpc("student_push_subscribe", { p_name: me.name, p_code: me.code, p_sub: sub, p_ua: navigator.userAgent });
+      if (error || !ok) throw new Error(error ? error.message : "enregistrement refusé");
+      el.innerHTML = `<div class="msg ok" style="margin:0">🔔 Notifications activées sur cet appareil ✔</div>`;
+      setTimeout(() => el.innerHTML = "", 6000);
+    } catch (err) { on.disabled = false; showMsg($("#pushMsg"), "Impossible d'activer : " + (err.message || err)); }
+  };
+}
+
+// ---------- Demarrage ----------
+async function startPreview() {
+  $("#login").classList.add("hidden");
+  const { data: { session } } = await sb.auth.getSession();
+  const { data: ok } = session ? await sb.rpc("is_admin") : { data: false };
+  const fail = t => { $("#login").classList.remove("hidden"); showMsg($("#loginMsg"), t); };
+  if (!ok) return fail("L'aperçu d'un espace élève est réservé au professeur : connectez-vous d'abord sur la page Administration.");
+  const { data: st, error } = await sb.from("students").select("name, code").eq("id", PREVIEW).maybeSingle();
+  if (error || !st) return fail("Élève introuvable.");
+  if (!(await login(st.name, st.code))) return fail("Impossible d'ouvrir l'espace de cet élève.");
+  $("#previewBar").innerHTML = `👁 <b>Aperçu professeur</b> — vous voyez exactement l'espace de <b>${esc(st.name)}</b>. Rien n'est enregistré à son nom (vu, messages lus, rendus, QCM). <a href="admin.html">← Retour à l'administration</a>`;
+  $("#previewBar").classList.remove("hidden");
+  $("#logout").textContent = "Fermer l'aperçu";
+  document.title = "Aperçu : " + st.name;
+}
+if (PREVIEW) startPreview();
+else { const s = saved.get(); if (s) { $("#login").classList.add("hidden"); login(s.name, s.code, true).then(ok => { if (!ok && !me) $("#login").classList.remove("hidden"); }); } }
 </script>
 </body>
 </html>

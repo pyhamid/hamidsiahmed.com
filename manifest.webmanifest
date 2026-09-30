@@ -1,0 +1,14 @@
+{
+  "name": "Espace cours · Hamid Si Ahmed",
+  "short_name": "Mes cours",
+  "start_url": "/cours.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#1f4fd1",
+  "lang": "fr",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
