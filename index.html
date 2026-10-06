@@ -114,8 +114,8 @@ try { if (new URLSearchParams(location.search).get("app") === "1" && localStorag
     </div>
   </section>
 
-  <!-- ESPACE ELEVE -->
-  <section class="h-sec">
+  <!-- ESPACE ELEVE (masqué par défaut : déjà accessible par « Mon espace » en haut ; réactivable dans l'admin) -->
+  <section class="h-sec hidden" id="espace">
     <div class="wrap">
       <div class="card h-space">
         <div>
@@ -175,13 +175,7 @@ try { if (new URLSearchParams(location.search).get("app") === "1" && localStorag
         <h2>Installer STI2D</h2>
         <p>Gardez STI2D sur votre téléphone ou votre ordinateur, comme une application. C'est gratuit et ne prend presque pas de place.</p>
       </div>
-      <div id="installBtnBox" class="hidden" style="margin-bottom:12px"><button class="btn" id="installBtn">📲 Installer STI2D</button></div>
-      <div class="h-install">
-        <div class="stat"><b>📱 Sur téléphone</b>
-          <p id="instPhone"><b>iPhone</b> (Safari) : touchez <b>Partager</b> ⬆︎ puis <b>« Sur l'écran d'accueil »</b>.<br><b>Android</b> (Chrome) : menu <b>⋮</b> puis <b>« Installer l'application »</b>.</p></div>
-        <div class="stat"><b>💻 Sur ordinateur</b>
-          <p>Avec Chrome ou Edge, cliquez sur l'icône d'installation à droite de la barre d'adresse.</p></div>
-      </div>
+      <button class="btn lg" id="installBtn" type="button">📲 Installer STI2D</button>
       <p class="h-note">Élèves inscrits : dans votre espace, vous pouvez aussi être prévenu(e) d'un nouveau cours, d'un devoir ou d'un message.</p>
     </div>
   </section>
@@ -198,6 +192,7 @@ try { if (new URLSearchParams(location.search).get("app") === "1" && localStorag
   let H; try { H = await rpc("public_home"); } catch (e) { return; }
   const on = k => (H.sections || {})[k] !== false;
   ["entraide", "accompagnement", "newsletter", "installer"].forEach(k => { if (!on(k)) $("#" + k).classList.add("hidden"); });
+  if ((H.sections || {}).espace === true) $("#espace").classList.remove("hidden");
   if (on("installer") && isStandaloneApp()) $("#installer").classList.add("hidden");
   const subs = H.subjects || [];
   if (H.counts.total) {
@@ -248,15 +243,18 @@ async function drawNotif() {
 }
 drawNotif();
 
-// ---------- Installation (PWA) ----------
+// ---------- Installation (PWA) : un seul bouton ----------
 (function () {
   if (isStandaloneApp()) { $("#installer").classList.add("hidden"); return; }
   let prompt = null;
-  const box = document.getElementById("installBtnBox");
-  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; box.classList.remove("hidden"); });
-  window.addEventListener("appinstalled", () => box.classList.add("hidden"));
-  document.getElementById("installBtn").addEventListener("click", async () => {
-    if (!prompt) return; prompt.prompt(); await prompt.userChoice.catch(() => {}); prompt = null; box.classList.add("hidden");
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; });
+  window.addEventListener("appinstalled", () => $("#installer").classList.add("hidden"));
+  $("#installBtn").addEventListener("click", async () => {
+    if (prompt) { prompt.prompt(); const r = await prompt.userChoice.catch(() => null); prompt = null; if (r && r.outcome === "accepted") $("#installer").classList.add("hidden"); return; }
+    // navigateur sans installation automatique (iPhone, Firefox…) : une seule indication
+    alert(isIOSDevice()
+      ? "Sur iPhone : touchez le bouton Partager ⬆︎ en bas de Safari, puis « Sur l'écran d'accueil »."
+      : "Ouvrez le menu de votre navigateur (⋮) puis choisissez « Installer l'application » ou « Ajouter à l'écran d'accueil ».");
   });
 })();
 </script>
