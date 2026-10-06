@@ -1,6 +1,6 @@
 {
-  "name": "Professeur · Hamid Si Ahmed",
-  "short_name": "Prof",
+  "name": "STI2D · Administration",
+  "short_name": "STI2D Prof",
   "id": "/admin.html",
   "start_url": "/admin.html",
   "scope": "/",

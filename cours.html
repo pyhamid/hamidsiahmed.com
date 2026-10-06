@@ -2,25 +2,25 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Espace cours · Hamid Si Ahmed</title>
+<title>Mon espace · STI2D</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=9">
+<link rel="stylesheet" href="assets/style.css?v=11">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1f4fd1">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Mes cours">
+<meta name="apple-mobile-web-app-title" content="STI2D">
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="brand" href="./">Hamid <span>Si Ahmed</span></a>
-  <nav><a href="./">Accueil</a><a href="cours.html" class="active">Espace cours</a></nav>
+  <a class="brand" href="./">STI2D<small>Plateforme pédagogique</small></a>
+  <nav><a href="./">Accueil</a><a href="cours.html" class="active">Mon espace</a></nav>
 </div></header>
 <main><div class="wrap">
 
   <section id="login" style="max-width:440px;margin:30px auto 0">
-    <h1>Espace cours</h1>
+    <h1>Espace élève</h1>
     <p class="sub">Entrez votre nom et le code personnel que votre professeur vous a donné.</p>
     <form id="loginForm" class="card stack">
       <div><label for="name">Nom et prénom</label><input id="name" type="text" autocomplete="name" required placeholder="ex. Lucas Martin"></div>
@@ -92,11 +92,12 @@
   </section>
 
 </div></main>
-<footer>© <span id="y"></span> Hamid Si Ahmed</footer>
+<footer>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="assets/common.js?v=6"></script>
 <script src="assets/qcm.js?v=3"></script>
+<script src="assets/viewer.js?v=1"></script>
 <script>
 $("#y").textContent = new Date().getFullYear();
 let data = null, me = null, aboutItem = null, curTab = "home", tick = null;
@@ -191,10 +192,17 @@ function openItem(id) {
   if (it.kind === "qcm") return openQcm(id);
   if (it.kind === "memo") return openMemo(id);
   const main = (it.files || []).filter(f => f.role === "file");
-  if (main.length === 1 && !it.comment) return openFile(main[0].id);
-  openModal(`<div class="row"><h2 style="margin:0">${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+  if (main.length === 1 && !it.comment && !it.video_url) return openFile(main[0].id, id);
+  const box = openModal(`<div class="row"><h2 style="margin:0">${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     ${it.comment ? `<div class="comment" style="margin-top:12px">${esc(it.comment)}</div>` : ""}
+    ${it.video_url ? `<div class="vidBox" style="margin-top:12px"></div>` : ""}
     ${(it.files || []).length ? `<div class="row" style="margin-top:12px">${fileBtns(it)}</div>` : ""}`);
+  if (it.video_url) DocViewer.videoFacade($(".vidBox", box), it.video_url, it.title);
+}
+// Droits choisis par le professeur (telechargement / impression) pour le contenu qui contient ce fichier
+function rightsOf(rid, itemId) {
+  const it = itemId ? findItem(itemId) : data.items.find(i => (i.files || []).some(f => f.id === rid));
+  return { download: !it || it.allow_download !== false, print: !it || it.allow_print !== false };
 }
 
 // ---------- Fichiers (liens temporaires, verifies par la base) ----------
@@ -206,7 +214,11 @@ async function fileLink(rid, download) {
 async function openFile(rid, itemId) {
   if (itemId) markSeen([itemId]);
   if (findRes(rid)) markResSeen([rid]);
-  try { const x = await fileLink(rid); preview(x.url, x.name); }
+  try {
+    const x = await fileLink(rid), r = rightsOf(rid, itemId);
+    if (r.download && r.print) preview(x.url, x.name);
+    else DocViewer.open({ title: x.name, name: x.name, url: x.url, download: r.download, print: r.print, getDownloadUrl: async () => (await fileLink(rid, true)).url });
+  }
   catch (e) { alert("Impossible d'ouvrir ce fichier : " + e.message); }
 }
 async function dlFile(rid, itemId) {
@@ -218,7 +230,7 @@ async function dlFile(rid, itemId) {
 const short = (n, k = 26) => n.length > k ? n.slice(0, k - 2) + "…" : n;
 function fileBtns(it) {
   const fs = it.files || [];
-  const btns = fs.map(f => `<span class="filebtn"><button class="btn sm ${f.role === "correction" ? "ok" : ""}" onclick="openFile('${f.id}','${it.id}')" title="${esc(f.file_name)}">${f.role === "correction" ? "✅ Correction" : "👁 " + (fs.length > 1 ? esc(short(f.name)) : "Aperçu")}</button><button class="btn sm ghost" onclick="dlFile('${f.id}','${it.id}')" title="Télécharger ${esc(f.file_name)}">⬇</button></span>`).join("");
+  const btns = fs.map(f => `<span class="filebtn"><button class="btn sm ${f.role === "correction" ? "ok" : ""}" onclick="openFile('${f.id}','${it.id}')" title="${esc(f.file_name)}">${f.role === "correction" ? "✅ Correction" : "👁 " + (fs.length > 1 ? esc(short(f.name)) : "Aperçu")}</button>${it.allow_download !== false ? `<button class="btn sm ghost" onclick="dlFile('${f.id}','${it.id}')" title="Télécharger ${esc(f.file_name)}">⬇</button>` : ""}</span>`).join("");
   const lock = it.corr_locked ? `<span class="pill wait" title="La correction sera visible ${it.kind === "qcm" ? "après votre 1re tentative" : "quand le devoir sera corrigé"}${it.due_at ? " ou après la date limite" : ""}">🔒 Correction bientôt disponible</span>` : "";
   return btns + lock;
 }
@@ -602,7 +614,7 @@ async function renderPush() {
   el.innerHTML = `<div class="card pushcard"><div class="row" style="align-items:flex-start">
       <div style="flex:1;min-width:220px"><b>🔔 Être prévenu sur ce téléphone</b>
         <div class="small muted" style="margin-top:4px">${ios
-          ? "Sur iPhone : touchez <b>Partager</b> <span style='font-size:1.1em'>⬆︎</span> puis <b>« Sur l'écran d'accueil »</b>. Ouvrez ensuite « Mes cours » depuis l'icône et revenez ici pour activer les notifications."
+          ? "Sur iPhone : touchez <b>Partager</b> <span style='font-size:1.1em'>⬆︎</span> puis <b>« Sur l'écran d'accueil »</b>. Ouvrez ensuite « STI2D » depuis l'icône et revenez ici pour activer les notifications."
           : "Nouveau cours, devoir, message du professeur, rappel avant le cours… Vous restez connecté(e) : plus besoin de retaper votre code."}</div></div>
       ${ios ? "" : `<button class="btn" id="pushOn">Activer les notifications</button>`}
       <button class="btn sm ghost" id="pushNo" title="Ne plus afficher">✕</button></div><div id="pushMsg" class="msg hidden"></div></div>`;

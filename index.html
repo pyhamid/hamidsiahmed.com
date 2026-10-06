@@ -2,35 +2,263 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hamid Si Ahmed</title>
+<title>STI2D · Plateforme pédagogique</title>
+<meta name="description" content="STI2D, plateforme pédagogique pour la Première et la Terminale STI2D : cours, résumés, exercices corrigés, annales, QCM et entraide.">
+<link rel="canonical" href="https://sti2d.org/">
+<meta property="og:title" content="STI2D · Plateforme pédagogique">
+<meta property="og:description" content="Apprendre • S'entraîner • Progresser • Réussir. Ressources pour la Première et la Terminale STI2D.">
+<meta property="og:url" content="https://sti2d.org/"><meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f4fd1">
+<link rel="icon" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="STI2D">
+<script>
+// Application installee : un eleve deja connecte retrouve directement son espace (comme avant)
+try { if (new URLSearchParams(location.search).get("app") === "1" && localStorage.getItem("eleve")) location.replace("cours.html"); } catch (e) {}
+</script>
 </head>
-<body>
+<body class="home">
 <header class="top"><div class="wrap">
-  <a class="brand" href="./">Hamid <span>Si Ahmed</span></a>
-  <nav><a href="./" class="active">Accueil</a><a href="cours.html">Espace cours</a></nav>
+  <a class="brand" href="./">STI2D<small>Plateforme pédagogique</small></a>
+  <nav><a href="./" class="active nav-home">Accueil</a><a href="ressources.html">Ressources</a><a href="entraide.html">Entraide</a><a href="cours.html" class="nav-cta">Mon espace</a></nav>
 </div></header>
-<main><div class="wrap">
-  <section class="hero">
-    <h1>Bienvenue</h1>
-    <p class="sub">Cours, ressources et projets.</p>
-  </section>
-  <div class="grid2">
-    <a class="card" href="cours.html" style="text-decoration:none;color:inherit">
-      <span class="badge">Élèves</span>
-      <h2 style="margin-top:10px">Espace cours</h2>
-      <p class="muted" style="margin:0">Connectez-vous avec votre nom et votre code personnel pour retrouver vos documents et les messages de votre professeur.</p>
-      <p style="margin:14px 0 0"><span class="btn">Accéder à mon espace →</span></p>
-    </a>
-    <div class="card">
-      <span class="badge all">Bientôt</span>
-      <h2 style="margin-top:10px">Projets</h2>
-      <p class="muted" style="margin:0">Une sélection de mes projets sera présentée ici prochainement.</p>
+
+<main>
+  <!-- EN-TETE -->
+  <section class="h-hero">
+    <div class="wrap">
+      <span class="h-eyebrow reveal">Première &amp; Terminale STI2D</span>
+      <h1 class="h-title reveal d1">STI<span>2</span>D</h1>
+      <p class="h-sub reveal d1">Plateforme pédagogique</p>
+      <ul class="h-tag reveal d2"><li>Apprendre</li><li>S'entraîner</li><li>Progresser</li><li>Réussir</li></ul>
+      <p class="h-lead reveal d2">Une bibliothèque de ressources pour réussir en STI2D : cours, résumés, exercices corrigés, annales et QCM, rangés par niveau, par enseignement et par chapitre.</p>
+      <div class="h-cta reveal d3">
+        <a class="btn lg" href="ressources.html">Explorer les ressources</a>
+        <a class="btn lg line" href="cours.html">Mon espace élève →</a>
+      </div>
     </div>
-  </div>
-</div></main>
-<footer>© <span id="y"></span> Hamid Si Ahmed</footer>
-<script>document.getElementById('y').textContent=new Date().getFullYear()</script>
+  </section>
+
+  <!-- LA BIBLIOTHEQUE -->
+  <section class="h-sec" id="bibliotheque">
+    <div class="wrap">
+      <div class="h-head">
+        <div class="h-kicker">La bibliothèque STI2D</div>
+        <h2>Tout ce qu'il faut pour travailler un chapitre</h2>
+        <p>Revenez quand vous en avez besoin : pour revoir un cours, vérifier une méthode, vous entraîner ou préparer le bac.</p>
+      </div>
+      <div class="h-types" id="types">
+        <div class="h-type"><i>📘</i>Cours</div>
+        <div class="h-type"><i>📝</i>Résumés</div>
+        <div class="h-type"><i>⭐</i>L'essentiel</div>
+        <div class="h-type"><i>✏️</i>Exercices corrigés</div>
+        <div class="h-type"><i>🎓</i>Annales</div>
+        <div class="h-type"><i>☑️</i>QCM</div>
+        <div class="h-type"><i>▶️</i>Vidéos</div>
+        <div class="h-type"><i>📎</i>Documents</div>
+      </div>
+      <div class="h-free"><span>🔓</span><div><b>Accès libre et gratuit.</b> Les ressources sont publiées au fil de l'année. La plupart sont ouvertes à tous, sans inscription.</div></div>
+    </div>
+  </section>
+
+  <!-- A DECOUVRIR (contenus mis en avant par l'admin) -->
+  <section class="h-sec hidden" id="decouvrir">
+    <div class="wrap">
+      <div class="h-head"><div class="h-kicker">Sélection</div><h2>À découvrir</h2></div>
+      <div class="rc-grid" id="featList"></div>
+    </div>
+  </section>
+
+  <!-- NOUVEAUTES -->
+  <section class="h-sec hidden" id="nouveautes">
+    <div class="wrap">
+      <div class="h-head row" style="align-items:flex-end"><div style="flex:1"><div class="h-kicker">Récemment publié</div><h2>Les nouveautés</h2></div>
+        <a href="ressources.html" class="small" style="font-weight:600;text-decoration:none">Toutes les ressources →</a></div>
+      <div class="rc-grid" id="newList"></div>
+    </div>
+  </section>
+
+  <!-- LES DEUX ANNEES -->
+  <section class="h-sec">
+    <div class="wrap">
+      <div class="h-head">
+        <div class="h-kicker">Organisation</div>
+        <h2>Deux années, un parcours</h2>
+        <p>Les ressources suivent l'organisation officielle de la série STI2D.</p>
+      </div>
+      <div class="h-levels">
+        <div class="card h-level" data-niv="1ere">
+          <div class="lv">Classe de</div><h3>Première <span class="h-count"></span></h3>
+          <ul>
+            <li><span class="h-dot"></span><div><b>Mathématiques</b></div></li>
+            <li><span class="h-dot"></span><div><b>Physique-chimie</b></div></li>
+            <li><span class="h-dot"></span><div><b>Innovation technologique</b><small>IT</small></div></li>
+            <li><span class="h-dot"></span><div><b>Ingénierie et développement durable</b><small>I2D</small></div></li>
+          </ul>
+        </div>
+        <div class="card h-level" data-niv="term">
+          <div class="lv">Classe de</div><h3>Terminale <span class="h-count"></span></h3>
+          <ul>
+            <li><span class="h-dot"></span><div><b>Mathématiques</b></div></li>
+            <li><span class="h-dot"></span><div><b>Physique-chimie</b></div></li>
+            <li><span class="h-dot"></span><div><b>Ingénierie, innovation et développement durable</b><small>2I2D</small>
+              <div class="h-dom"><span title="Architecture et Construction">AC</span><span title="Énergies et Environnement">EE</span><span title="Innovation Technologique et Éco-Conception">ITEC</span><span title="Systèmes d'Information et Numérique">SIN</span></div></div></li>
+          </ul>
+        </div>
+      </div>
+      <p class="h-note">En Terminale, l'enseignement 2I2D comporte un tronc commun et un enseignement spécifique au choix : Architecture et Construction (AC), Énergies et Environnement (EE), Innovation Technologique et Éco-Conception (ITEC), Systèmes d'Information et Numérique (SIN).</p>
+    </div>
+  </section>
+
+  <!-- ESPACE ELEVE -->
+  <section class="h-sec">
+    <div class="wrap">
+      <div class="card h-space">
+        <div>
+          <h2>Espace élève</h2>
+          <p>Vous êtes accompagné(e) ? Retrouvez vos cours, vos devoirs, vos QCM, vos séances et les messages de votre professeur.</p>
+        </div>
+        <a class="btn lg" href="cours.html">Accéder à mon espace →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUESTIONS & ENTRAIDE -->
+  <section class="h-sec" id="entraide">
+    <div class="wrap">
+      <div class="h-forum">
+        <div>
+          <div class="h-kicker">Questions & entraide</div>
+          <h2 style="font-size:1.5rem;margin:0">Une question ? La communauté peut vous aider.</h2>
+          <p class="muted">Vous ne comprenez pas un exercice ou une notion ? Posez votre question, ajoutez une photo de l'énoncé si besoin : d'autres élèves et le professeur vous répondent.</p>
+          <div class="row" style="margin-top:14px"><a class="btn" href="entraide.html?nouveau=1">✍️ Poser une question</a><a class="btn line" href="entraide.html">Voir les questions <span id="fCount" class="h-count"></span></a></div>
+        </div>
+        <div class="demo hidden" id="demo"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACCOMPAGNEMENT -->
+  <section class="h-sec" id="accompagnement">
+    <div class="wrap">
+      <div class="card h-space h-cta-band">
+        <div><h2 style="color:#fff">Envie d'aller plus loin ?</h2><p>Un accompagnement personnalisé pour progresser en mathématiques, physique-chimie ou enseignements technologiques.</p></div>
+        <a class="btn lg" href="accompagnement.html">Demander un accompagnement</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- NEWSLETTER -->
+  <section class="h-sec" id="newsletter">
+    <div class="wrap">
+      <div class="card h-news">
+        <div style="flex:1 1 260px"><h2 style="margin:0 0 4px">Recevez les nouveautés STI2D</h2><p class="muted" style="margin:0">Un e-mail quand de nouvelles ressources sont publiées. Désinscription en un clic.</p></div>
+        <form id="nlForm" novalidate><input id="nlEmail" type="email" autocomplete="email" placeholder="votre@email.fr" aria-label="Adresse e-mail">
+          <input class="hp" id="nlHp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn" id="nlBtn">S'inscrire</button></form>
+        <div id="nlMsg" class="msg hidden" style="flex-basis:100%;margin:0"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NOTIFICATIONS (distinctes de la newsletter : alerte sur l'appareil) -->
+  <section class="h-sec" style="padding-top:16px"><div class="wrap"><div class="notif-inv hidden" id="notifInv" style="margin:0"></div></div></section>
+
+  <!-- INSTALLER -->
+  <section class="h-sec" id="installer">
+    <div class="wrap">
+      <div class="h-head">
+        <div class="h-kicker">Application</div>
+        <h2>Installer STI2D</h2>
+        <p>Gardez STI2D sur votre téléphone ou votre ordinateur, comme une application. C'est gratuit et ne prend presque pas de place.</p>
+      </div>
+      <div id="installBtnBox" class="hidden" style="margin-bottom:12px"><button class="btn" id="installBtn">📲 Installer STI2D</button></div>
+      <div class="h-install">
+        <div class="stat"><b>📱 Sur téléphone</b>
+          <p id="instPhone"><b>iPhone</b> (Safari) : touchez <b>Partager</b> ⬆︎ puis <b>« Sur l'écran d'accueil »</b>.<br><b>Android</b> (Chrome) : menu <b>⋮</b> puis <b>« Installer l'application »</b>.</p></div>
+        <div class="stat"><b>💻 Sur ordinateur</b>
+          <p>Avec Chrome ou Edge, cliquez sur l'icône d'installation à droite de la barre d'adresse.</p></div>
+      </div>
+      <p class="h-note">Élèves inscrits : dans votre espace, vous pouvez aussi être prévenu(e) d'un nouveau cours, d'un devoir ou d'un message.</p>
+    </div>
+  </section>
+</main>
+
+<footer><div class="wrap foot">
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
+</div></footer>
+<script src="assets/public.js?v=1"></script>
+<script>
+// ---------- Contenus de l'accueil (une seule requête) : rien n'est affiché s'il n'y a rien à montrer ----------
+(async () => {
+  let H; try { H = await rpc("public_home"); } catch (e) { return; }
+  const on = k => (H.sections || {})[k] !== false;
+  ["entraide", "accompagnement", "newsletter", "installer"].forEach(k => { if (!on(k)) $("#" + k).classList.add("hidden"); });
+  if (on("installer") && isStandaloneApp()) $("#installer").classList.add("hidden");
+  const subs = H.subjects || [];
+  if (H.counts.total) {
+    // seulement les types qui existent vraiment, avec un lien
+    $("#types").innerHTML = Object.keys(RTYPE).filter(t => H.types[t]).map(t =>
+      `<a class="h-type" href="ressources.html?type=${t}" style="text-decoration:none;color:inherit"><i>${RTYPE[t][0]}</i><span>${esc(RTYPE_PLURAL[t])} <span class="h-count">${H.types[t]}</span></span></a>`).join("");
+    $$(".h-level").forEach(c => { const n = H.counts[c.dataset.niv]; if (!n) return;
+      $(".h-count", c).textContent = n + " ressource" + (n > 1 ? "s" : "");
+      c.insertAdjacentHTML("beforeend", `<a class="btn sm" style="margin-top:14px" href="ressources.html?niveau=${c.dataset.niv}">Voir les ressources →</a>`); });
+  }
+  if (on("decouvrir") && H.featured.length) { $("#featList").innerHTML = H.featured.map(i => resCard(i, subs)).join(""); $("#decouvrir").classList.remove("hidden"); }
+  if (on("nouveautes") && H.latest.length) { $("#newList").innerHTML = H.latest.map(i => resCard(i, subs)).join(""); $("#nouveautes").classList.remove("hidden"); }
+  if (H.forum_count) $("#fCount").textContent = H.forum_count;
+  if (on("entraide") && H.forum) {   // une vraie question, choisie par le professeur
+    const f = H.forum, r = f.reply;
+    $("#demo").innerHTML = `<a href="entraide.html?q=${f.id}" style="text-decoration:none;color:inherit" class="demo">
+      <article class="post q"><div class="post-who"><span class="avatar">${esc((f.author || "?")[0].toUpperCase())}</span><b>${esc(f.author)}</b></div><div class="rc-title">${esc(f.title)}</div><div class="post-body small" style="margin-top:4px">${esc(f.body)}</div></article>
+      ${r ? `<article class="post ${r.by_admin ? "prof" : ""}"><div class="post-who"><span class="avatar ${r.by_admin ? "prof" : ""}">${r.by_admin ? "P" : esc((r.author || "?")[0].toUpperCase())}</span><b>${esc(r.author)}</b><span>a répondu</span></div><div class="post-body small">${esc(r.body)}</div></article>` : ""}</a>`;
+    $("#demo").classList.remove("hidden");
+  }
+})();
+
+// ---------- Newsletter ----------
+$("#nlForm").onsubmit = async e => {
+  e.preventDefault();
+  const m = $("#nlMsg"), em = $("#nlEmail").value.trim(), show = (t, k) => { m.className = "msg " + k; m.style.margin = "0"; m.innerHTML = t; };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return show("Adresse e-mail invalide.", "err");
+  $("#nlBtn").disabled = true;
+  try {
+    const r = await rpc("newsletter_subscribe", { p_email: em, p_hp: $("#nlHp").value });
+    show(r === "confirmed" ? "Vous êtes déjà inscrit(e) ✔" : `<b>Presque fini !</b> Cliquez sur le lien de l'e-mail envoyé à ${esc(em)} pour confirmer.`, "ok");
+    $("#nlForm").classList.add("hidden");
+  } catch (err) { show("Erreur : " + esc(err.message), "err"); $("#nlBtn").disabled = false; }
+};
+
+// ---------- Notifications « nouveautés » (discret, jamais au chargement) ----------
+async function drawNotif() {
+  const el = $("#notifInv"), st = await newsPushState();
+  if (st === "unsupported" || st === "denied") { el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  el.innerHTML = st === "on"
+    ? `<div>🔔 <b>Notifications activées</b> sur cet appareil : vous serez prévenu(e) des nouvelles ressources.</div><button class="btn sm ghost" id="nOff">Désactiver</button>`
+    : st === "ios" ? `<div>🔔 <b>Être prévenu des nouvelles ressources ?</b> Sur iPhone, installez d'abord STI2D (Partager ⬆︎ → « Sur l'écran d'accueil »), ouvrez-le depuis l'icône, puis revenez ici.</div>`
+    : `<div>🔔 <b>Être prévenu des nouvelles ressources</b> par une notification sur cet appareil.</div><button class="btn sm" id="nOn">Activer</button>`;
+  const a = $("#nOn"), b = $("#nOff");
+  if (a) a.onclick = async () => { a.disabled = true; try { await newsPushOn(); } catch (e) { alert("Impossible d'activer : " + e.message); } drawNotif(); };
+  if (b) b.onclick = async () => { await newsPushOff(); drawNotif(); };
+}
+drawNotif();
+
+// ---------- Installation (PWA) ----------
+(function () {
+  if (isStandaloneApp()) { $("#installer").classList.add("hidden"); return; }
+  let prompt = null;
+  const box = document.getElementById("installBtnBox");
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; box.classList.remove("hidden"); });
+  window.addEventListener("appinstalled", () => box.classList.add("hidden"));
+  document.getElementById("installBtn").addEventListener("click", async () => {
+    if (!prompt) return; prompt.prompt(); await prompt.userChoice.catch(() => {}); prompt = null; box.classList.add("hidden");
+  });
+})();
+</script>
 </body>
 </html>

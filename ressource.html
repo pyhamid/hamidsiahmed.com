@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ressource · STI2D</title>
+<meta name="description" content="Ressource STI2D en accès libre : cours, résumé, exercices, annale ou QCM.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f4fd1">
+<link rel="icon" href="assets/icon-192.png"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="STI2D">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">STI2D<small>Plateforme pédagogique</small></a>
+  <nav><a href="./" class="nav-home">Accueil</a><a href="ressources.html" class="active">Ressources</a><a href="entraide.html">Entraide</a><a href="cours.html" class="nav-cta">Mon espace</a></nav>
+</div></header>
+
+<main><div class="wrap" style="max-width:860px">
+  <div id="res" class="stack" style="margin-top:28px"><div class="card empty">Chargement…</div></div>
+</div></main>
+
+<footer><div class="wrap foot">
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
+</div></footer>
+
+<script src="assets/public.js?v=1"></script>
+<script src="assets/viewer.js?v=1"></script>
+<script src="assets/qcm.js?v=3"></script>
+<script>
+const ID = new URLSearchParams(location.search).get("id");
+let R = null;
+
+async function link(fid, download) {
+  const f = await rpc("public_file", { p_item: R.id, p_res: fid });
+  return signFile("cours", f.path, download ? f.name : null);
+}
+async function openF(fid) {
+  const f = R.files.find(x => x.id === fid);
+  try {
+    DocViewer.open({ title: f.role === "correction" ? "Correction · " + f.name : f.name, name: f.file_name, mime: f.mime,
+      url: await link(fid), download: R.allow_download, print: R.allow_print, getDownloadUrl: () => link(fid, true) });
+  } catch (e) { alert("Impossible d'ouvrir ce fichier : " + e.message); }
+}
+async function dlF(fid) { try { location.href = await link(fid, true); } catch (e) { alert("Téléchargement impossible : " + e.message); } }
+
+function fileRow(f) {
+  const k = DocViewer.kindOf(f.file_name, f.mime);
+  return `<div class="res-file"><span class="rc-ico" style="width:36px;height:36px">${f.role === "correction" ? "✅" : k === "pdf" ? "📄" : k === "img" ? "🖼" : k === "video" ? "🎬" : "📎"}</span>
+    <span class="nm">${esc(f.role === "correction" ? "Correction" : f.name)}<small>${esc(f.file_name)}${f.size ? " · " + fmtSize(f.size) : ""}</small></span>
+    <button class="btn sm" onclick="openF('${f.id}')">${k === "video" ? "▶ Regarder" : "👁 Ouvrir"}</button>
+    ${R.allow_download ? `<button class="btn sm ghost" onclick="dlF('${f.id}')" aria-label="Télécharger">⬇</button>` : ""}</div>`;
+}
+
+function startQcm() {
+  const el = $("#qz");
+  const play = () => QCM.player(el, R.quiz, { onFinish: async ans => {
+    const { quiz } = await rpc("public_quiz_check", { p_item: R.id });
+    QCM.result(el, quiz, ans, { onRetry: play });
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  } });
+  play();
+}
+function startCards() {
+  const el = $("#fc");
+  const go = () => QCM.flash(el, R.cards, { onDone: (r, out) => {
+    out.innerHTML = `<button class="btn" type="button">🔄 Recommencer</button><p class="small muted" style="margin-top:10px">Élève accompagné(e) ? Dans <a href="cours.html">votre espace</a>, la plateforme vous rappelle quand réviser.</p>`;
+    out.querySelector("button").onclick = go;
+  } });
+  go();
+}
+
+(async () => {
+  const box = $("#res");
+  if (!ID) { box.innerHTML = `<div class="card empty">Ressource introuvable. <a href="ressources.html">Voir toutes les ressources</a></div>`; return; }
+  try { R = await rpc("public_item", { p_id: ID }); } catch (e) { box.innerHTML = `<div class="card empty">Chargement impossible pour le moment. Réessayez dans un instant.</div>`; return; }
+  if (!R) { box.innerHTML = `<div class="card empty">Cette ressource n'est pas (ou plus) disponible. <a href="ressources.html">Voir toutes les ressources</a></div>`; return; }
+  const t = R.type, [ico, lbl] = RTYPE[t] || RTYPE.autre;
+  document.title = R.title + " · STI2D";
+  const files = R.files.filter(f => f.role === "file"), corr = R.files.filter(f => f.role === "correction");
+  const rights = [!R.allow_download && "téléchargement non autorisé", !R.allow_print && "impression non autorisée"].filter(Boolean);
+  box.innerHTML = `
+    <div class="crumbs"><a href="ressources.html">Ressources</a>${R.niveau ? ` › <a href="ressources.html?niveau=${R.niveau === "both" ? "" : R.niveau}">${esc(NIVEAU[R.niveau])}</a>` : ""}${R.subject ? ` › <a href="ressources.html?matiere=${R.subject_id}">${esc(R.subject)}</a>` : ""}</div>
+    <div class="res-head"><span class="rc-ico t-${t}">${ico}</span><div style="min-width:0">
+      <div class="rc-meta"><b>${esc(lbl)}</b></div><h1 style="font-size:1.6rem;margin:2px 0 0">${esc(R.title)}</h1>
+      <div class="res-tags">${R.niveau ? `<span class="tag">${esc(NIVEAU[R.niveau])}</span>` : ""}${R.subject ? `<span class="tag">${esc(R.subject)}</span>` : ""}${R.chapter ? `<span class="tag">${esc(R.chapter)}</span>` : ""}${R.year ? `<span class="tag">Session ${R.year}</span>` : ""}<span class="tag">Publié le ${fmtDate(R.date)}</span></div>
+    </div></div>
+    ${R.comment ? `<div class="card"><div style="white-space:pre-wrap">${esc(R.comment)}</div></div>` : ""}
+    ${R.video_url ? `<div id="vid"></div>` : ""}
+    ${R.kind === "qcm" && (R.quiz || []).length ? `<div class="card" id="qz"><h2 style="margin:0 0 6px">☑️ QCM · ${R.quiz.length} question(s)</h2><p class="muted" style="margin:0 0 14px">Répondez aux questions, puis découvrez votre score et les corrections. Rien n'est enregistré.</p><button class="btn lg" onclick="startQcm()">Commencer le QCM</button></div>` : ""}
+    ${R.kind === "memo" && (R.cards || []).length ? `<div class="card" id="fc"><h2 style="margin:0 0 6px">⭐ ${R.cards.length} carte(s) à retenir</h2><p class="muted" style="margin:0 0 14px">Lisez la question, répondez dans votre tête, puis retournez la carte.</p><button class="btn lg" onclick="startCards()">S'entraîner</button></div>` : ""}
+    ${files.length ? `<div>${files.map(fileRow).join("")}</div>` : ""}
+    ${corr.length ? `<div><h2 style="font-size:1.05rem;margin:6px 0 10px">Correction</h2>${corr.map(fileRow).join("")}</div>` : ""}
+    ${rights.length ? `<p class="rights">🔒 ${esc(rights.join(" · "))} pour ce document.</p>` : ""}
+    <div class="card h-space" style="margin-top:8px"><div><h2 style="font-size:1.1rem">Une question sur cette ressource ?</h2><p>Posez-la : la communauté et le professeur peuvent vous aider.</p></div>
+      <a class="btn" href="entraide.html?nouveau=1${R.subject_id ? "&matiere=" + R.subject_id : ""}${R.niveau && R.niveau !== "both" ? "&niveau=" + R.niveau : ""}&titre=${encodeURIComponent(R.title)}">Poser une question</a></div>
+    <p><a href="ressources.html">← Toutes les ressources</a></p>`;
+  if (R.video_url) DocViewer.videoFacade($("#vid"), R.video_url, R.title);
+})();
+</script>
+</body>
+</html>

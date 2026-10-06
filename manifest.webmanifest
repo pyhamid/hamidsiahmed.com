@@ -1,7 +1,9 @@
 {
-  "name": "Espace cours · Hamid Si Ahmed",
-  "short_name": "Mes cours",
-  "start_url": "/cours.html",
+  "id": "/cours.html",
+  "name": "STI2D · Plateforme pédagogique",
+  "short_name": "STI2D",
+  "description": "Cours, résumés, exercices, annales et QCM pour la Première et la Terminale STI2D.",
+  "start_url": "/?app=1",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f6f7fb",

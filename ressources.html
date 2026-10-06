@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ressources · STI2D</title>
+<meta name="description" content="Cours, résumés, exercices corrigés, annales et QCM pour la Première et la Terminale STI2D, en accès libre.">
+<link rel="canonical" href="https://sti2d.org/ressources.html">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f4fd1">
+<link rel="icon" href="assets/icon-192.png"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="STI2D">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">STI2D<small>Plateforme pédagogique</small></a>
+  <nav><a href="./" class="nav-home">Accueil</a><a href="ressources.html" class="active">Ressources</a><a href="entraide.html">Entraide</a><a href="cours.html" class="nav-cta">Mon espace</a></nav>
+</div></header>
+
+<main><div class="wrap">
+  <section class="pg-head">
+    <h1>Ressources STI2D</h1>
+    <p>Cours, résumés, exercices, annales et QCM, en accès libre.</p>
+  </section>
+
+  <div id="ui" class="hidden">
+    <div class="lvl-switch" id="lvl" role="tablist" aria-label="Niveau">
+      <button data-n="" class="on">Tout</button><button data-n="1ere">Première</button><button data-n="term">Terminale</button>
+    </div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Rechercher (ex. dérivée, loi d'Ohm…)" aria-label="Rechercher">
+      <select id="sub" aria-label="Enseignement"></select>
+    </div>
+    <div class="chips" id="types"></div>
+    <div id="out"></div>
+  </div>
+  <div id="state" class="card empty" style="margin-top:20px">Chargement des ressources…</div>
+</div></main>
+
+<footer><div class="wrap foot">
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
+</div></footer>
+
+<script src="assets/public.js?v=1"></script>
+<script>
+let L = null;
+const P = new URLSearchParams(location.search);
+const F = { n: P.get("niveau") || "", s: P.get("matiere") || "", t: P.get("type") || "", q: P.get("q") || "" };
+
+function syncUrl() {
+  const u = new URLSearchParams();
+  if (F.n) u.set("niveau", F.n); if (F.s) u.set("matiere", F.s); if (F.t) u.set("type", F.t); if (F.q) u.set("q", F.q);
+  history.replaceState(null, "", "ressources.html" + (u.toString() ? "?" + u : ""));
+}
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const subOf = id => L.subjects.find(s => s.id === id);
+const chapOf = id => L.chapters.find(c => c.id === id);
+
+function filtered(skipType) {
+  const q = norm(F.q).trim();
+  return L.items.filter(it => niveauMatch(it, F.n)
+    && (!F.s || (F.s.startsWith("f:") ? familyOf(subOf(it.subject_id) || {}) === F.s.slice(2) : it.subject_id === F.s))
+    && (skipType || !F.t || it.type === F.t)
+    && (!q || norm(it.title + " " + it.excerpt + " " + ((subOf(it.subject_id) || {}).name || "") + " " + ((chapOf(it.chapter_id) || {}).name || "")).includes(q)));
+}
+
+function render() {
+  syncUrl();
+  $$("#lvl button").forEach(b => { b.classList.toggle("on", b.dataset.n === F.n); b.classList.toggle("hidden", !!b.dataset.n && !L.items.some(it => niveauMatch(it, b.dataset.n) && it.niveau)); });
+  $("#lvl").classList.toggle("hidden", $$("#lvl button:not(.hidden)").length < 2);
+  // enseignements presents pour ce niveau (jamais de choix vide)
+  const atLvl = L.items.filter(it => niveauMatch(it, F.n));
+  const fams = {}; L.subjects.forEach(s => { if (atLvl.some(i => i.subject_id === s.id)) (fams[familyOf(s)] = fams[familyOf(s)] || []).push(s); });
+  $("#sub").innerHTML = `<option value="">Tous les enseignements</option>` + Object.keys(FAMILY).filter(f => fams[f]).map(f =>
+    `<optgroup label="${esc(FAMILY[f])}">${fams[f].length > 1 ? `<option value="f:${f}">${esc(FAMILY[f])} (tout)</option>` : ""}${fams[f].map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</optgroup>`).join("");
+  if (F.s && !$(`#sub option[value="${F.s}"]`)) F.s = "";
+  $("#sub").value = F.s;
+  // types presents (avec leur nombre)
+  const base = filtered(true), cnt = {};
+  base.forEach(it => cnt[it.type] = (cnt[it.type] || 0) + 1);
+  if (F.t && !cnt[F.t]) F.t = "";
+  const tk = Object.keys(RTYPE).filter(t => cnt[t]);
+  $("#types").innerHTML = tk.length > 1 ? `<button class="fchip ${F.t ? "" : "on"}" data-t="">Tout<span class="n">${base.length}</span></button>` +
+    tk.map(t => `<button class="fchip ${F.t === t ? "on" : ""}" data-t="${t}">${RTYPE[t][0]} ${esc(RTYPE_PLURAL[t])}<span class="n">${cnt[t]}</span></button>`).join("") : "";
+  $$("#types .fchip").forEach(b => b.onclick = () => { F.t = b.dataset.t; render(); });
+
+  const list = filtered(false);
+  if (!list.length) { $("#out").innerHTML = `<div class="card empty" style="margin-top:16px">Aucune ressource ne correspond à cette recherche.</div>`; return; }
+  // regroupement : enseignement -> chapitre
+  const order = L.subjects.slice().sort((a, b) => Object.keys(FAMILY).indexOf(familyOf(a)) - Object.keys(FAMILY).indexOf(familyOf(b)) || a.position - b.position);
+  const groups = [...order.map(s => ({ s, items: list.filter(i => i.subject_id === s.id) })), { s: { name: "Autres ressources" }, items: list.filter(i => !subOf(i.subject_id)) }].filter(g => g.items.length);
+  $("#out").innerHTML = groups.map(g => {
+    const chaps = L.chapters.filter(c => c.subject_id === g.s.id && g.items.some(i => i.chapter_id === c.id));
+    const loose = g.items.filter(i => !chaps.some(c => c.id === i.chapter_id));
+    return `<section class="lib-group"><h2>${esc(g.s.name)} <span class="h-count">${g.items.length}</span></h2>
+      ${chaps.map(c => `<h3>${esc(c.name)}</h3><div class="rc-grid">${g.items.filter(i => i.chapter_id === c.id).map(i => resCard(i, L.subjects)).join("")}</div>`).join("")}
+      ${loose.length ? `${chaps.length ? `<h3>Général</h3>` : ""}<div class="rc-grid">${loose.map(i => resCard(i, L.subjects)).join("")}</div>` : ""}</section>`;
+  }).join("");
+}
+
+$$("#lvl button").forEach(b => b.onclick = () => { F.n = b.dataset.n; render(); });
+$("#sub").onchange = () => { F.s = $("#sub").value; render(); };
+let tq = null; $("#q").value = F.q;
+$("#q").oninput = () => { clearTimeout(tq); tq = setTimeout(() => { F.q = $("#q").value; render(); }, 180); };
+
+(async () => {
+  try { L = await rpc("public_library"); }
+  catch (e) { $("#state").textContent = "Impossible de charger les ressources pour le moment. Réessayez dans un instant."; return; }
+  if (!L.items.length) {
+    $("#state").innerHTML = `<b>Les premières ressources arrivent bientôt.</b><br><span class="small">En attendant, posez vos questions dans <a href="entraide.html">Questions & entraide</a> ou <a href="newsletter.html">recevez les nouveautés</a>.</span>`;
+    return;
+  }
+  $("#state").classList.add("hidden"); $("#ui").classList.remove("hidden");
+  render();
+})();
+</script>
+</body>
+</html>

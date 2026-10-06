@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Questions & entraide · STI2D</title>
+<meta name="description" content="Une question sur un cours ou un exercice de STI2D ? Posez-la : élèves et professeur s'entraident.">
+<link rel="canonical" href="https://sti2d.org/entraide.html">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f4fd1">
+<link rel="icon" href="assets/icon-192.png"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="STI2D">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">STI2D<small>Plateforme pédagogique</small></a>
+  <nav><a href="./" class="nav-home">Accueil</a><a href="ressources.html">Ressources</a><a href="entraide.html" class="active">Entraide</a><a href="cours.html" class="nav-cta">Mon espace</a></nav>
+</div></header>
+
+<main><div class="wrap" style="max-width:860px">
+  <div id="profBar" class="preview-bar hidden" style="margin-top:20px">👩‍🏫 Connecté(e) comme <b>professeur</b> : vos messages sont publiés au nom « Professeur ». La modération se fait dans <a href="admin.html#entraide">l'administration</a>.</div>
+
+  <!-- LISTE -->
+  <section id="vList" class="hidden">
+    <div class="pg-head row" style="align-items:flex-end">
+      <div style="flex:1;min-width:240px"><h1>Questions & entraide</h1><p>Vous bloquez sur un cours ou un exercice ? Posez votre question : élèves et professeur peuvent vous aider.</p></div>
+      <a class="btn lg" href="?nouveau=1">✍️ Poser une question</a>
+    </div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Rechercher une question…" aria-label="Rechercher">
+      <select id="fN" aria-label="Niveau"><option value="">Tous niveaux</option><option value="1ere">Première</option><option value="term">Terminale</option></select>
+      <select id="fS" aria-label="Enseignement"></select>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- DISCUSSION -->
+  <section id="vThread" class="hidden" style="margin-top:24px"></section>
+
+  <!-- NOUVELLE QUESTION -->
+  <section id="vNew" class="hidden">
+    <div class="pg-head"><div class="crumbs"><a href="entraide.html">Questions & entraide</a></div><h1>Poser une question</h1>
+      <p>Expliquez ce que vous avez essayé et ce qui bloque : vous aurez une réponse plus utile.</p></div>
+    <form id="newForm" class="card stack" style="margin-top:16px" novalidate>
+      <div><label for="nTitle">Votre question en une phrase <span class="req">*</span></label>
+        <input id="nTitle" type="text" maxlength="140" required placeholder="ex. Comment déterminer la fonction de transfert de cet exercice ?"></div>
+      <div class="form-grid">
+        <div><label for="nNiv">Niveau</label><select id="nNiv"><option value="">—</option><option value="1ere">Première</option><option value="term">Terminale</option></select></div>
+        <div><label for="nSub">Enseignement</label><select id="nSub"></select></div>
+      </div>
+      <div><label for="nBody">Expliquez votre problème <span class="req">*</span></label>
+        <textarea id="nBody" required maxlength="5000" style="min-height:150px" placeholder="Énoncé, ce que vous avez fait, où vous bloquez…"></textarea></div>
+      <div id="nAtt"></div>
+      <div id="nWho"></div>
+      <input class="hp" id="nHp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <p class="legal">N'indiquez pas d'informations personnelles (nom complet, téléphone, adresse). Les messages sont publics et modérés.</p>
+      <div class="row"><button class="btn lg" type="submit" id="nBtn">Publier ma question</button><a class="btn ghost" href="entraide.html">Annuler</a><span id="nProg" class="small muted"></span></div>
+      <div id="nMsg" class="msg hidden"></div>
+    </form>
+  </section>
+</div></main>
+
+<footer><div class="wrap foot">
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
+</div></footer>
+
+<script src="assets/public.js?v=1"></script>
+<script>
+const P = new URLSearchParams(location.search);
+const PROF = !!adminToken(), ME = savedStudent();
+const MAX_FILES = 3, LIM = { img: 2 * 1048576, pdf: 3 * 1048576 };
+let SUBJ = [];
+if (PROF) $("#profBar").classList.remove("hidden");
+
+// ---------- Pièces jointes (avec limites et réduction des photos) ----------
+function attachBox(el) {
+  const files = [];
+  el.innerHTML = `<label>Photo ou fichier <span class="muted small">(facultatif · ${MAX_FILES} maximum · photo 2 Mo, PDF 3 Mo)</span></label>
+    <div class="row"><button type="button" class="btn sm ghost" data-add>📎 Ajouter une photo ou un PDF</button><input type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" multiple class="hidden"></div>
+    <div class="att-pick"></div><div class="msg err hidden" data-err></div>`;
+  const inp = $("input[type=file]", el), pick = $(".att-pick", el), er = $("[data-err]", el);
+  const draw = () => {
+    pick.innerHTML = files.map((f, k) => `<span class="chip">${/^image/.test(f.type) ? "🖼" : "📄"} ${esc(f.name.length > 28 ? f.name.slice(0, 26) + "…" : f.name)} <span class="small muted">${fmtSize(f.size)}</span><button type="button" data-rm="${k}" aria-label="Retirer">✕</button></span>`).join("");
+    $$("[data-rm]", pick).forEach(b => b.onclick = () => { files.splice(+b.dataset.rm, 1); draw(); });
+    $("[data-add]", el).disabled = files.length >= MAX_FILES;
+  };
+  $("[data-add]", el).onclick = () => inp.click();
+  inp.onchange = async () => {
+    er.classList.add("hidden");
+    const msgs = [];
+    for (let f of [...inp.files]) {
+      if (files.length >= MAX_FILES) { msgs.push(`${MAX_FILES} pièces jointes maximum.`); break; }
+      const isImg = /^image\/(jpeg|png|webp|gif)$/.test(f.type), isPdf = f.type === "application/pdf";
+      if (!isImg && !isPdf) { msgs.push(`« ${f.name} » : format non accepté. Envoyez une photo (JPG, PNG) ou un PDF.`); continue; }
+      if (isImg && f.type !== "image/gif") f = await shrinkImage(f);
+      const lim = isPdf ? LIM.pdf : LIM.img;
+      if (f.size > lim) {
+        msgs.push(isPdf ? `« ${f.name} » pèse ${fmtSize(f.size)} (maximum 3 Mo). Compressez le PDF (ex. avec un outil en ligne « compresser PDF ») ou envoyez seulement la page utile en photo.`
+                        : `« ${f.name} » est trop lourde (${fmtSize(f.size)}, maximum 2 Mo). Réduisez la taille de la photo ou faites une capture d'écran de la partie utile.`);
+        continue;
+      }
+      files.push(f);
+    }
+    inp.value = ""; draw();
+    if (msgs.length) { er.innerHTML = msgs.map(esc).join("<br>"); er.classList.remove("hidden"); }
+  };
+  draw();
+  return {
+    files,
+    async upload(prog) {
+      const out = [];
+      for (let k = 0; k < files.length; k++) {
+        prog(`Envoi de la pièce jointe ${k + 1}/${files.length}…`);
+        const f = files[k], path = await rpc("forum_upload_slot", { p_filename: f.name, p_mime: f.type, p_size: f.size });
+        await uploadForum(path, f); out.push({ path, name: f.name });
+      }
+      return out;
+    },
+    clear() { files.length = 0; draw(); },
+  };
+}
+// Qui écrit ?
+function whoBox(el, pending) {
+  if (PROF) { el.innerHTML = ""; return () => ({ p_author: "Professeur" }); }
+  if (ME) {
+    el.innerHTML = `<label class="inline"><input type="checkbox" id="asMe" checked style="width:auto"> Publier en tant que <b>${esc(String(ME.name).split(" ")[0])}</b> (élève inscrit·e, publication immédiate)</label>
+      <div id="pseudoBox" class="hidden" style="margin-top:8px"><label>Pseudo</label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>`;
+    $("#asMe", el).onchange = () => $("#pseudoBox", el).classList.toggle("hidden", $("#asMe", el).checked);
+    return () => $("#asMe", el).checked ? { p_author: "", p_name: ME.name, p_code: ME.code } : { p_author: $(".pseudo", el).value };
+  }
+  el.innerHTML = `<div class="form-grid"><div><label>Pseudo <span class="req">*</span></label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>
+    <div class="hint" style="align-self:end">${pending}</div></div>`;
+  return () => ({ p_author: $(".pseudo", el).value });
+}
+const attHtml = (atts) => (atts || []).length ? `<div class="atts">${atts.map(a => /^image\//.test(a.mime)
+  ? `<a href="${esc(forumUrl(a.path))}" target="_blank" rel="noopener"><img src="${esc(forumUrl(a.path))}" alt="${esc(a.name)}" loading="lazy"></a>`
+  : `<a class="pdf" href="${esc(forumUrl(a.path))}" target="_blank" rel="noopener">📄 ${esc(a.name)}</a>`).join("")}</div>` : "";
+const initial = (n) => esc((String(n || "?").trim()[0] || "?").toUpperCase());
+
+// ---------- Liste ----------
+let THREADS = [];
+function renderList() {
+  const q = $("#q").value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim(), n = $("#fN").value, s = $("#fS").value;
+  const list = THREADS.filter(t => (!n || t.niveau === n) && (!s || t.subject_id === s)
+    && (!q || (t.title + " " + t.excerpt).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(q)));
+  $("#list").innerHTML = list.length ? list.map(t => `<a class="th" href="?q=${t.id}">
+      <div class="th-title">${t.pinned ? "📌 " : ""}${esc(t.title)}</div>
+      <div class="th-ex">${esc(t.excerpt)}</div>
+      <div class="th-meta"><span>${esc(t.author)}</span><span>${ago(t.created_at)}</span>${t.niveau ? `<span>${esc(NIVEAU[t.niveau])}</span>` : ""}${t.subject ? `<span>${esc(t.subject)}</span>` : ""}
+        <span>💬 ${t.answers} réponse${t.answers > 1 ? "s" : ""}</span>${t.solved ? `<span class="ok-badge">✔ Résolue</span>` : ""}${t.att ? "<span>📎</span>" : ""}${t.closed ? "<span>🔒 Fermée</span>" : ""}</div></a>`).join("")
+    : THREADS.length ? `<div class="card empty">Aucune question ne correspond.</div>`
+    : `<div class="card empty"><b>Aucune question pour l'instant.</b><br><span class="small">Soyez le premier à poser la vôtre !</span></div>`;
+}
+async function showList() {
+  $("#vList").classList.remove("hidden");
+  $("#list").innerHTML = `<div class="card empty">Chargement…</div>`;
+  try { THREADS = await rpc("forum_list", { p_limit: 300 }); } catch (e) { $("#list").innerHTML = `<div class="card empty">Chargement impossible pour le moment.</div>`; return; }
+  const used = SUBJ.filter(s => THREADS.some(t => t.subject_id === s.id));
+  $("#fS").innerHTML = `<option value="">Tous les enseignements</option>` + used.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  $("#fS").classList.toggle("hidden", !used.length);
+  renderList();
+}
+["#q", "#fN", "#fS"].forEach(s => $(s).addEventListener("input", renderList));
+
+// ---------- Discussion ----------
+async function showThread(id) {
+  const el = $("#vThread"); el.classList.remove("hidden");
+  el.innerHTML = `<div class="card empty">Chargement…</div>`;
+  let t; try { t = await rpc("forum_thread", { p_id: id }); } catch (e) { t = undefined; }
+  if (!t) { el.innerHTML = `<div class="card empty">${t === null ? "Cette question n'est pas (ou plus) disponible." : "Chargement impossible."} <a href="entraide.html">Voir toutes les questions</a></div>`; return; }
+  document.title = t.title + " · Entraide STI2D";
+  const post = (p, isQ) => `<article class="post ${isQ ? "q" : ""} ${p.by_admin ? "prof" : ""} ${p.is_solution ? "sol" : ""}">
+      <div class="post-who"><span class="avatar ${p.by_admin ? "prof" : ""}">${p.by_admin ? "P" : initial(p.author)}</span><b>${esc(p.author)}</b><span>${ago(p.created_at)}</span>${p.is_solution ? `<span class="ok-badge">✔ Solution</span>` : ""}
+        <span class="spacer"></span><button class="btn sm ghost" style="padding:3px 8px" onclick="report('${isQ ? "thread" : "post"}','${p.id}',this)" title="Signaler un contenu inapproprié">⚑</button></div>
+      ${isQ ? `<h1 style="font-size:1.35rem;margin:0 0 8px">${esc(t.title)}</h1>` : ""}
+      <div class="post-body">${esc(p.body)}</div>${attHtml(p.attachments)}</article>`;
+  el.innerHTML = `<div class="crumbs"><a href="entraide.html">Questions & entraide</a>${t.niveau ? " › " + esc(NIVEAU[t.niveau]) : ""}${t.subject ? " › " + esc(t.subject) : ""}</div>
+    ${post(t, true)}
+    <h2 style="font-size:1.05rem;margin:22px 0 10px">${t.posts.length ? `${t.posts.length} réponse${t.posts.length > 1 ? "s" : ""}` : "Pas encore de réponse"}</h2>
+    ${t.posts.map(p => post(p, false)).join("")}
+    ${t.closed ? `<div class="card empty" style="margin-top:14px">🔒 Cette discussion est fermée.</div>` : `
+    <form id="rForm" class="card stack" style="margin-top:16px" novalidate>
+      <h2 style="margin:0;font-size:1.05rem">Votre réponse</h2>
+      <textarea id="rBody" required maxlength="5000" placeholder="Expliquez la méthode, donnez une piste…"></textarea>
+      <div id="rAtt"></div><div id="rWho"></div>
+      <input class="hp" id="rHp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <div class="row"><button class="btn" type="submit" id="rBtn">Répondre</button><span id="rProg" class="small muted"></span></div>
+      <div id="rMsg" class="msg hidden"></div></form>`}
+    <p style="margin-top:18px"><a href="entraide.html">← Toutes les questions</a></p>`;
+  if (t.closed) return;
+  const att = attachBox($("#rAtt")), who = whoBox($("#rWho"), "Votre réponse sera visible après validation par le professeur.");
+  $("#rForm").onsubmit = async e => {
+    e.preventDefault(); $("#rMsg").classList.add("hidden");
+    const btn = $("#rBtn"); btn.disabled = true;
+    try {
+      if ($("#rBody").value.trim().length < 2) throw new Error("écrivez votre réponse");
+      const w = who(); if (!PROF && !w.p_name && String(w.p_author || "").trim().length < 2) throw new Error("indiquez un pseudo");
+      const atts = await att.upload(t2 => $("#rProg").textContent = t2);
+      const r = await rpc("forum_reply", { p_thread: t.id, p_body: $("#rBody").value, p_attachments: atts, p_hp: $("#rHp").value, ...w });
+      if (r.status === "published") { showThread(t.id); return; }
+      $("#rBody").value = ""; att.clear();
+      showMsg($("#rMsg"), "Merci ! Votre réponse sera visible après validation par le professeur.", "ok");
+    } catch (err) { showMsg($("#rMsg"), "Erreur : " + err.message); }
+    finally { btn.disabled = false; $("#rProg").textContent = ""; }
+  };
+}
+async function report(kind, id, btn) {
+  if (!confirm("Signaler ce message au professeur (contenu inapproprié, erreur…) ?")) return;
+  try { await rpc("forum_report", { p_kind: kind, p_id: id }); btn.textContent = "✔ Signalé"; btn.disabled = true; } catch (e) { alert(e.message); }
+}
+
+// ---------- Nouvelle question ----------
+function showNew() {
+  $("#vNew").classList.remove("hidden");
+  $("#nSub").innerHTML = `<option value="">—</option>` + Object.keys(FAMILY).map(f => {
+    const ss = SUBJ.filter(s => familyOf(s) === f); return ss.length ? `<optgroup label="${esc(FAMILY[f])}">${ss.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</optgroup>` : "";
+  }).join("");
+  if (P.get("matiere")) $("#nSub").value = P.get("matiere");
+  if (P.get("niveau")) $("#nNiv").value = P.get("niveau");
+  if (P.get("titre")) $("#nBody").placeholder = `À propos de « ${P.get("titre")} » : …`;
+  const att = attachBox($("#nAtt")), who = whoBox($("#nWho"), "Votre question sera visible après validation par le professeur.");
+  $("#newForm").onsubmit = async e => {
+    e.preventDefault(); $("#nMsg").classList.add("hidden");
+    const btn = $("#nBtn"); btn.disabled = true;
+    try {
+      if ($("#nTitle").value.trim().length < 5) throw new Error("écrivez votre question en une phrase (titre)");
+      if ($("#nBody").value.trim().length < 10) throw new Error("expliquez un peu plus votre problème");
+      const w = who(); if (!PROF && !w.p_name && String(w.p_author || "").trim().length < 2) throw new Error("indiquez un pseudo");
+      const atts = await att.upload(t => $("#nProg").textContent = t);
+      $("#nProg").textContent = "Publication…";
+      const r = await rpc("forum_create_thread", { p_title: $("#nTitle").value, p_body: $("#nBody").value, p_niveau: $("#nNiv").value || null,
+        p_subject: $("#nSub").value || null, p_attachments: atts, p_hp: $("#nHp").value, ...w });
+      if (r.status === "published" && r.id) { location.href = "?q=" + r.id; return; }
+      $("#newForm").innerHTML = `<div class="msg ok" style="margin:0"><b>Merci, votre question a bien été envoyée !</b><br>Elle sera visible après validation par le professeur (en général dans la journée).</div>
+        <p style="margin:14px 0 0"><a href="entraide.html">← Revenir aux questions</a></p>`;
+    } catch (err) { showMsg($("#nMsg"), "Erreur : " + err.message); }
+    finally { if ($("#nBtn")) { btn.disabled = false; $("#nProg").textContent = ""; } }
+  };
+}
+function showMsg(el, text, type = "err") { el.className = "msg " + type; el.textContent = text; el.classList.remove("hidden"); }
+
+(async () => {
+  try { SUBJ = await rpc("public_subjects"); } catch (e) { SUBJ = []; }
+  if (P.get("q")) showThread(P.get("q"));
+  else if (P.has("nouveau")) showNew();
+  else showList();
+})();
+</script>
+</body>
+</html>

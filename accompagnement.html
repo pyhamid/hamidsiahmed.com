@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demander un accompagnement · STI2D</title>
+<meta name="description" content="Demander des renseignements ou un accompagnement pédagogique en STI2D (Première, Terminale).">
+<link rel="canonical" href="https://sti2d.org/accompagnement.html">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f4fd1">
+<link rel="icon" href="assets/icon-192.png"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">STI2D<small>Plateforme pédagogique</small></a>
+  <nav><a href="./" class="nav-home">Accueil</a><a href="ressources.html">Ressources</a><a href="entraide.html">Entraide</a><a href="cours.html" class="nav-cta">Mon espace</a></nav>
+</div></header>
+
+<main><div class="wrap" style="max-width:720px">
+  <section class="pg-head">
+    <h1>Demander un accompagnement</h1>
+    <p>Un renseignement, un besoin de soutien régulier ou ponctuel en mathématiques, physique-chimie ou enseignements technologiques ? Expliquez votre demande : vous recevrez une réponse par e-mail.</p>
+  </section>
+  <form id="f" class="card stack" style="margin-top:16px" novalidate>
+    <div class="form-grid">
+      <div><label for="last">Nom <span class="req">*</span></label><input id="last" type="text" autocomplete="family-name" maxlength="80" required></div>
+      <div><label for="first">Prénom <span class="req">*</span></label><input id="first" type="text" autocomplete="given-name" maxlength="80" required></div>
+      <div><label for="email">E-mail <span class="req">*</span></label><input id="email" type="email" autocomplete="email" maxlength="160" required></div>
+      <div><label for="phone">Téléphone <span class="muted small">(facultatif)</span></label><input id="phone" type="text" inputmode="tel" autocomplete="tel" maxlength="30"></div>
+    </div>
+    <div><label for="subj">Objet <span class="req">*</span></label><input id="subj" type="text" maxlength="160" required placeholder="ex. Soutien en physique-chimie, Terminale STI2D"></div>
+    <div><label for="msg">Message <span class="req">*</span></label><textarea id="msg" maxlength="5000" required style="min-height:170px" placeholder="Niveau, enseignement, difficultés, disponibilités… Écrivez librement."></textarea></div>
+    <input class="hp" id="hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <p class="legal">Vos coordonnées servent uniquement à répondre à votre demande. Elles ne sont ni publiées ni transmises. Vous pouvez demander leur suppression à tout moment en répondant à notre e-mail.</p>
+    <div><button class="btn lg" type="submit" id="btn">Envoyer ma demande</button></div>
+    <div id="m" class="msg hidden"></div>
+  </form>
+</div></main>
+
+<footer><div class="wrap foot">
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
+</div></footer>
+
+<script src="assets/public.js?v=1"></script>
+<script>
+const m = $("#m"), show = (t, k = "err") => { m.className = "msg " + k; m.textContent = t; m.classList.remove("hidden"); };
+$("#f").onsubmit = async e => {
+  e.preventDefault(); m.classList.add("hidden");
+  const v = id => $("#" + id).value.trim();
+  if (!v("last") || !v("first")) return show("Indiquez votre nom et votre prénom.");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v("email"))) return show("Adresse e-mail invalide.");
+  if (v("subj").length < 2) return show("Indiquez l'objet de votre demande.");
+  if (v("msg").length < 10) return show("Votre message est trop court.");
+  $("#btn").disabled = true;
+  try {
+    await rpc("submit_contact_request", { p_last: v("last"), p_first: v("first"), p_email: v("email"), p_phone: v("phone"), p_subject: v("subj"), p_message: v("msg"), p_hp: $("#hp").value });
+    $("#f").innerHTML = `<div class="msg ok" style="margin:0"><b>Merci ${esc(v("first"))}, votre demande a bien été envoyée.</b><br>Vous recevrez une réponse par e-mail à l'adresse ${esc(v("email"))}.</div>
+      <p style="margin:14px 0 0"><a href="ressources.html">En attendant, découvrez les ressources →</a></p>`;
+  } catch (err) { show("Erreur : " + err.message); $("#btn").disabled = false; }
+};
+</script>
+</body>
+</html>

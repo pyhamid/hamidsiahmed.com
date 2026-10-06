@@ -2,20 +2,20 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Administration · Hamid Si Ahmed</title>
+<title>Administration · STI2D</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=9">
+<link rel="stylesheet" href="assets/style.css?v=11">
 <link rel="manifest" href="manifest-admin.webmanifest">
 <meta name="theme-color" content="#1c2230">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon-admin.png">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Prof">
+<meta name="apple-mobile-web-app-title" content="STI2D Prof">
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="brand" href="./">Hamid <span>Si Ahmed</span> · <span class="muted" style="font-weight:500">Admin</span></a>
-  <nav><a href="#" id="undoBtn" class="hidden" title="Annuler la dernière action (Ctrl+Z)">↩️ Annuler</a><a href="cours.html">Espace élève</a><a href="#" id="accountBtn" class="hidden" title="Notifications, e-mails, mot de passe">⚙️ Compte</a><a href="#" id="logout" class="hidden">Déconnexion</a></nav>
+  <a class="brand" href="./">STI2D<small>Administration</small></a>
+  <nav><a href="#" id="undoBtn" class="hidden" title="Annuler la dernière action (Ctrl+Z)">↩️ Annuler</a><a href="./?visiteur=1" target="_blank" rel="noopener" title="Ouvre le site public tel qu'un visiteur le voit">🌐 Site</a><a href="cours.html">Espace élève</a><a href="#" id="accountBtn" class="hidden" title="Notifications, e-mails, mot de passe">⚙️ Compte</a><a href="#" id="logout" class="hidden">Déconnexion</a></nav>
 </div></header>
 <main><div class="wrap">
 
@@ -44,6 +44,10 @@
     <button data-tab="students">👩‍🎓 Élèves & groupes</button>
     <button data-tab="subjects">🗂 Matières</button>
     <button data-tab="anns">📢 Annonces</button>
+    <button data-tab="site">🌐 Site public</button>
+    <button data-tab="entraide">🙋 Entraide<span id="dotForum"></span></button>
+    <button data-tab="demandes">📨 Demandes<span id="dotReq"></span></button>
+    <button data-tab="newsletter">📰 Newsletter</button>
   </div>
 
   <!-- TABLEAU DE BORD -->
@@ -182,9 +186,10 @@ Puissance électrique → P = U × I"></textarea>
           <label class="inline small" style="margin-top:6px"><input type="checkbox" id="pHide" style="width:auto"> Faire disparaître le QCM chez les élèves à la fin</label>
           <div class="hint">Après la fin, plus personne ne peut faire la 1re tentative. Sinon le QCM reste visible (« Terminé ») avec les corrections.</div></div>
       </div>
+      <div id="pPubBlock"></div>
       <div>
-        <label>Destinataires</label>
-        <div class="seg" id="tgtSeg" style="margin-bottom:10px"><button type="button" data-t="all" class="active">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button></div>
+        <label>Destinataires <span class="muted small">(espace élève)</span></label>
+        <div class="seg" id="tgtSeg" style="margin-bottom:10px"><button type="button" data-t="all" class="active">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button><button type="button" data-t="none" title="Seulement sur le site public, pas dans l'espace élève">Aucun élève</button></div>
         <div id="tgtBox" class="checks hidden"></div>
       </div>
       <div class="row"><button class="btn" id="pubBtn" type="submit">Publier</button><button class="btn ghost" id="draftBtn" type="button" title="Sauvegardé dans Contenus, invisible pour les élèves : vous le publierez plus tard">💾 Enregistrer comme brouillon</button><span id="pubProg" class="small muted"></span></div>
@@ -199,7 +204,7 @@ Puissance électrique → P = U × I"></textarea>
         <select id="fSubject" style="max-width:200px"></select>
         <select id="fKind" style="max-width:160px"><option value="">Tous les types</option><option value="doc">Documents</option><option value="devoir">Devoirs</option><option value="qcm">QCM</option><option value="memo">À retenir</option></select>
         <select id="fStudent" style="max-width:200px"></select>
-        <select id="fStatus" style="max-width:170px"><option value="">Tous les statuts</option><option value="draft">✏️ Brouillons</option><option value="planned">⏰ Programmés</option><option value="live">🟢 En ligne</option><option value="ended">🏁 Terminés</option><option value="archived">🗄 Archivés</option></select></div>
+        <select id="fStatus" style="max-width:170px"><option value="">Tous les statuts</option><option value="public">🌐 Sur le site public</option><option value="draft">✏️ Brouillons</option><option value="planned">⏰ Programmés</option><option value="live">🟢 En ligne</option><option value="ended">🏁 Terminés</option><option value="archived">🗄 Archivés</option></select></div>
       <div id="itemList"></div>
     </div>
   </div>
@@ -264,7 +269,7 @@ Puissance électrique → P = U × I"></textarea>
         <div id="grList"></div>
       </form>
     </div>
-    <div class="card"><h2>Mes élèves</h2><p class="hint" style="margin-top:-8px">Donnez à chaque élève son <b>nom exact</b>, son <b>code</b> et le lien <b>hamidsiahmed.com/cours.html</b> (bouton « Copier l'accès »).</p><div id="stList"></div></div>
+    <div class="card"><h2>Mes élèves</h2><p class="hint" style="margin-top:-8px">Donnez à chaque élève son <b>nom exact</b>, son <b>code</b> et le lien <b>sti2d.org/cours.html</b> (bouton « Copier l'accès »).</p><div id="stList"></div></div>
   </div>
 
   <!-- MATIERES -->
@@ -285,6 +290,11 @@ Puissance électrique → P = U × I"></textarea>
     </form>
     <div class="card"><h2>Annonces publiées</h2><div id="annList"></div></div>
   </div>
+  <!-- v7 : site public (remplis par assets/admin-public.js) -->
+  <div data-panel="site" class="stack hidden"></div>
+  <div data-panel="entraide" class="stack hidden"></div>
+  <div data-panel="demandes" class="stack hidden"></div>
+  <div data-panel="newsletter" class="stack hidden"></div>
 </section>
 
 </div></main>
@@ -292,6 +302,7 @@ Puissance électrique → P = U × I"></textarea>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="assets/common.js?v=6"></script>
 <script src="assets/qcm.js?v=3"></script>
+<script src="assets/viewer.js?v=1"></script>
 <script>
 const S = { students: [], groups: [], sg: [], subjects: [], chapters: [], items: [], iStu: [], iGrp: [], subs: [], msgs: [], anns: [], aStu: [], aGrp: [],
   sessions: [], sStu: [], views: [], memo: [], attempts: [], settings: [], res: [], iRes: [], rStu: [], push: [] };
@@ -352,7 +363,7 @@ const PK = { student_groups: ["student_id", "group_id"], item_students: ["item_i
   item_resources: ["item_id", "resource_id"], resource_students: ["resource_id", "student_id"], settings: ["key"] };
 const ORDER = ["subjects", "chapters", "groups", "students", "sessions", "resources", "items", "announcements", "settings", "student_groups", "session_students", "item_students",
   "item_groups", "item_resources", "resource_students", "announcement_targets", "announcement_groups", "submissions", "quiz_attempts", "memo_progress", "item_views", "messages", "push_subscriptions"];
-const AUTO_COLS = ["seen_by_teacher", "read_by_teacher", "sha256", "notified_at", "reminded_at", "last_ok_at"];           // mises a jour automatiques : pas une « action »
+const AUTO_COLS = ["seen_by_teacher", "read_by_teacher", "sha256", "notified_at", "reminded_at", "last_ok_at", "public_notified_at"];           // mises a jour automatiques : pas une « action »
 const STUDENT_WRITES = { submissions: ["grade", "feedback", "graded_at", "corrected_resource_id", "corrected_path", "corrected_name"], messages: ["body", "item_id"],
   quiz_attempts: [], memo_progress: [], item_views: [] };                    // tables aussi ecrites par les eleves : on ne touche qu'aux colonnes du prof
 const NOUN = { items: ["Contenu", 0], resources: ["Fichier", 0], sessions: ["Séance", 1], students: ["Élève", 1], groups: ["Groupe", 0], subjects: ["Matière", 1], chapters: ["Chapitre", 0],
@@ -503,7 +514,7 @@ function notifs() {
   const nSub = S.subs.filter(s => !s.seen_by_teacher).length, nMsg = S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).length;
   $("#dotSub").innerHTML = nSub ? `<span class="dot">${nSub}</span>` : "";
   $("#dotMsg").innerHTML = nMsg ? `<span class="dot">${nMsg}</span>` : "";
-  document.title = (nSub + nMsg ? `(${nSub + nMsg}) ` : "") + "Administration · Hamid Si Ahmed";
+  document.title = (nSub + nMsg ? `(${nSub + nMsg}) ` : "") + "Administration · STI2D";
   const key = nSub + ":" + nMsg;
   if (lastNotif !== null) {
     const [ps, pm] = lastNotif.split(":").map(Number);
@@ -511,7 +522,7 @@ function notifs() {
     if (nMsg > pm) toast(`💬 <b>Nouveau message</b> — ${esc([...new Set(S.msgs.filter(m => !m.from_teacher && !m.read_by_teacher).slice(-(nMsg - pm)).map(m => nameOf(m.student_id)))].join(", "))}`);
   }
   if (!PUSH_ON && lastNotif !== null && key !== lastNotif && nSub + nMsg > 0 && "Notification" in window && Notification.permission === "granted") {
-    new Notification("Espace cours", { body: `${nSub} nouveau(x) rendu(s), ${nMsg} message(s) non lu(s)` });
+    new Notification("STI2D", { body: `${nSub} nouveau(x) rendu(s), ${nMsg} message(s) non lu(s)` });
   }
   lastNotif = key;
 }
@@ -540,7 +551,7 @@ function applyKind() {
   attEd.draw();
 }
 function renderTargets(box, mode, prefix) {
-  const el = $(box); el.classList.toggle("hidden", mode === "all");
+  const el = $(box); el.classList.toggle("hidden", mode === "all" || mode === "none");
   const keep = el.dataset.mode === mode ? $$("input:checked", el).map(c => c.value) : []; el.dataset.mode = mode; // garde les cases cochees lors d'une mise a jour automatique
   const list = mode === "groups" ? S.groups : S.students;
   el.innerHTML = list.length ? list.map(x => `<label><input type="checkbox" class="${prefix}chk" value="${x.id}"> ${esc(x.name)}${mode === "groups" ? ` <span class="muted small">(${S.sg.filter(s => s.group_id === x.id).length})</span>` : ""}</label>`).join("")
@@ -643,8 +654,10 @@ $("#pubForm").addEventListener("submit", async e => {
       if (!r.ok) { showQcmPreview(r); throw new Error("le QCM contient des erreurs (voir l'aperçu ci-dessus)"); }
       quiz = r.questions;
     }
-    const ids = tgt === "all" ? [] : checkedIn("#tgtBox", "tchk");
-    if (tgt !== "all" && !ids.length) throw new Error(tgt === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
+    const ids = tgt === "all" || tgt === "none" ? [] : checkedIn("#tgtBox", "tchk");
+    if ((tgt === "groups" || tgt === "students") && !ids.length) throw new Error(tgt === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
+    const pubPatch = readPubBlock($("#pPubBlock"), "p");
+    if (tgt === "none" && !pubPatch.is_public) throw new Error("« Aucun élève » : cochez « Publier sur le site public », sinon personne ne verra ce contenu");
     if (kind === "doc" && !hasFiles && !$("#pComment").value.trim()) throw new Error("ajoutez un fichier ou un commentaire");
     let cards = null;
     if (kind === "memo") {
@@ -665,7 +678,7 @@ $("#pubForm").addEventListener("submit", async e => {
       subject_id: meta.subject_id, chapter_id: meta.chapter_id,
       for_all: tgt === "all", publish_at: pubAt, draft, close_at: closeAt, hide_after_close: !!closeAt && $("#pHide").checked,
       due_at: kind === "devoir" ? fromLocalInput($("#pDue").value) : null, quiz, cards, quiz_src: kind === "qcm" ? $("#qText").value : null,
-      session_id: $("#pSession").value || null,
+      session_id: $("#pSession").value || null, ...pubPatch,
     }).select().single());
     if (tgt === "students") await q(sb.from("item_students").insert(ids.map(s => ({ item_id: item.id, student_id: s }))));
     if (tgt === "groups") await q(sb.from("item_groups").insert(ids.map(g => ({ item_id: item.id, group_id: g }))));
@@ -677,6 +690,7 @@ $("#pubForm").addEventListener("submit", async e => {
     $("#pTitle").value = ""; $("#pComment").value = ""; $("#pLevel").value = ""; fileInput.value = ""; attEd.clear(); $("#pDue").value = ""; $("#pPub").value = ""; $("#pClose").value = ""; $("#pHide").checked = false;
     if (kind === "qcm") resetQuiz();
     if (kind === "memo") { $("#cText").value = ""; $("#cStatus").innerHTML = ""; }
+    drawPubBlock($("#pPubBlock"), "p", {});
     await loadAll();
   } catch (err) {
     showMsg($("#pubMsg"), "Erreur : " + (err.message || err));
@@ -1130,6 +1144,7 @@ function targetsOf(it) {
 }
 function targetLabel(it) {
   if (it.for_all) return `<span class="badge all">Toute la classe</span>`;
+  if (!S.iGrp.some(x => x.item_id === it.id) && !S.iStu.some(x => x.item_id === it.id)) return `<span class="badge" style="background:#f2f4f7;color:#667085">Aucun élève</span>`;
   const g = S.iGrp.filter(x => x.item_id === it.id).map(x => byId("groups", x.group_id).name);
   const s = S.iStu.filter(x => x.item_id === it.id).map(x => nameOf(x.student_id));
   return [...g.map(n => `<span class="badge" style="background:#e7f6ee;color:#1b7f4b">👥 ${esc(n)}</span>`), ...s.map(n => `<span class="badge">${esc(n)}</span>`)].join(" ");
@@ -1155,7 +1170,7 @@ function publishNow(id) {
 }
 function renderItems() {
   const fs = $("#fSubject").value, fk = $("#fKind").value, fst = $("#fStudent").value, fss = $("#fStatus").value;
-  const list = S.items.filter(i => (!fs || i.subject_id === fs) && (!fk || i.kind === fk) && (!fst || targetsOf(i).includes(fst)) && (!fss || itemStatus(i).k === fss));
+  const list = S.items.filter(i => (!fs || i.subject_id === fs) && (!fk || i.kind === fk) && (!fst || targetsOf(i).includes(fst)) && (!fss || (fss === "public" ? i.is_public : itemStatus(i).k === fss)));
   $("#itemList").innerHTML = list.length ? list.map(it => {
     const sub = byId("subjects", it.subject_id).name, ch = byId("chapters", it.chapter_id).name;
     const st = itemStatus(it);
@@ -1163,7 +1178,7 @@ function renderItems() {
     const files = itemRes(it.id);
     return `<div class="doc"><div class="ico ${it.kind}">${it.kind === "doc" ? esc(files[0] ? ext(files[0].file_name) : "NOTE") : it.kind === "qcm" ? "QCM" : it.kind === "memo" ? "🧠" : "DEV"}</div>
       <div class="body">
-        <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span><span class="badge">${KIND[it.kind]}</span>${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${it.kind === "qcm" ? `<span class="small muted">${(it.quiz || []).length} question(s)</span>` : ""}<span class="pill ${st.cls}">${esc(st.txt)}</span></div>
+        <div class="row" style="gap:8px"><span class="title">${esc(it.title)}</span><span class="badge">${KIND[it.kind]}</span>${it.level ? `<span class="badge" style="background:#f2f4f7;color:#344054">🎓 ${esc(it.level)}</span>` : ""}${it.kind === "qcm" ? `<span class="small muted">${(it.quiz || []).length} question(s)</span>` : ""}<span class="pill ${st.cls}">${esc(st.txt)}</span>${pubBadges(it)}</div>
         <div class="small muted">${sub ? "📁 " + esc(sub) + (ch ? " › " + esc(ch) : "") + " · " : ""}${fmtDate(it.created_at)}${it.due_at ? " · à rendre avant le " + fmtDT(it.due_at) : ""}</div>
         <div style="margin-top:6px">${targetLabel(it)} <span class="small muted" title="Élèves ayant ouvert ce contenu">👁 vu par ${S.views.filter(v => v.item_id === it.id).length}/${nT}</span>${it.session_id && byId("sessions", it.session_id).id ? ` <span class="small muted">· 📅 séance du ${fmtDate(byId("sessions", it.session_id).starts_at)}</span>` : ""}${it.kind === "memo" ? ` <span class="small muted">· 🧠 ${(it.cards || []).length} carte(s), retenue par ${S.memo.filter(m => m.item_id === it.id && m.confirmed_at).length}/${nT}</span>` : ""}</div>
         ${it.comment ? `<div class="comment">${esc(it.comment)}</div>` : ""}
@@ -1172,6 +1187,7 @@ function renderItems() {
           ${it.kind === "qcm" ? `<button class="btn sm ghost" onclick="testQcm('${it.id}')">👁 Tester</button>` : ""}
           ${it.kind !== "doc" ? `<button class="btn sm" onclick="openSuivi('${it.id}')">✅ Suivi (${nR}/${nT})</button>` : ""}
           <button class="btn sm ghost" onclick="editItem('${it.id}')">✏️ Modifier</button>
+          ${pubBtn(it)}
           ${st.k === "draft" ? `<button class="btn sm" onclick="publishNow('${it.id}')">▶ Publier</button>`
             : st.k === "archived" ? `<button class="btn sm ghost" onclick="setItem('${it.id}', { archived: false })">♻️ Désarchiver</button>`
             : `<button class="btn sm ghost" onclick="setItem('${it.id}', { draft: true }, 'Repasser en brouillon ? Le contenu disparaît chez les élèves (les résultats sont conservés).')">⏸ Brouillon</button>
@@ -1206,8 +1222,9 @@ function editItem(id, focus) {
         </div>
         ${it.kind === "qcm" ? `<div class="hint">Pour réutiliser ce QCM (autre créneau, autres élèves), changez simplement les dates et les destinataires : c'est toujours le même QCM, sans doublon.</div>` : ""}
       </div>
-      <div><label>Destinataires</label>
-        <div class="seg" id="eTgtSeg" style="margin-bottom:8px"><button type="button" data-t="all">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button></div>
+      <div id="ePubBlock"></div>
+      <div><label>Destinataires <span class="muted small">(espace élève)</span></label>
+        <div class="seg" id="eTgtSeg" style="margin-bottom:8px"><button type="button" data-t="all">Toute la classe</button><button type="button" data-t="groups">Groupes</button><button type="button" data-t="students">Élèves</button><button type="button" data-t="none">Aucun élève</button></div>
         <div id="eTgtBox" class="checks hidden"></div>
         <div class="hint">Pour donner ce contenu à un élève de plus plus tard, cochez-le ici : rien n'est dupliqué${it.kind === "qcm" ? " (le QCM reste unique, chaque élève a ses propres réponses)" : ""}.</div></div>
       <div><label>Fichiers</label><div id="eAtt" class="att-list"></div>
@@ -1217,7 +1234,8 @@ function editItem(id, focus) {
   const fillC = () => { const sid = $("#eSub", box).value; $("#eCh", box).innerHTML = `<option value="">— Général —</option>` + S.chapters.filter(c => c.subject_id === sid).map(c => `<option value="${c.id}" ${c.id === it.chapter_id ? "selected" : ""}>${esc(c.name)}</option>`).join(""); };
   fillC(); $("#eSub", box).onchange = fillC;
   // destinataires
-  let eT = it.for_all ? "all" : S.iGrp.some(x => x.item_id === id) ? "groups" : "students";
+  let eT = it.for_all ? "all" : S.iGrp.some(x => x.item_id === id) ? "groups" : S.iStu.some(x => x.item_id === id) ? "students" : "none";
+  drawPubBlock($("#ePubBlock", box), "e", it);
   const curIds = eT === "groups" ? S.iGrp.filter(x => x.item_id === id).map(x => x.group_id) : S.iStu.filter(x => x.item_id === id).map(x => x.student_id);
   const drawT = keep => {
     $$("#eTgtSeg button", box).forEach(b => b.classList.toggle("active", b.dataset.t === eT));
@@ -1239,10 +1257,12 @@ function editItem(id, focus) {
   $("#edForm", box).onsubmit = async e => {
     e.preventDefault(); $("#eBtn", box).disabled = true;
     try {
-      const ids = eT === "all" ? [] : $$("#eTgtBox .echk:checked", box).map(c => c.value);
-      if (eT !== "all" && !ids.length) throw new Error(eT === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
+      const ids = eT === "all" || eT === "none" ? [] : $$("#eTgtBox .echk:checked", box).map(c => c.value);
+      if ((eT === "groups" || eT === "students") && !ids.length) throw new Error(eT === "groups" ? "choisissez au moins un groupe" : "choisissez au moins un élève");
+      const pubPatch = readPubBlock($("#ePubBlock", box), "e");
+      if (eT === "none" && !pubPatch.is_public) throw new Error("« Aucun élève » : cochez « Publier sur le site public », sinon personne ne verra ce contenu");
       const patch = { title: $("#eTitle", box).value.trim(), level: $("#eLevel", box).value.trim() || null, comment: $("#eComment", box).value.trim() || null, subject_id: $("#eSub", box).value || null,
-        chapter_id: $("#eCh", box).value || null, publish_at: fromLocalInput($("#ePub", box).value) || new Date().toISOString() };
+        chapter_id: $("#eCh", box).value || null, publish_at: fromLocalInput($("#ePub", box).value) || new Date().toISOString(), ...pubPatch };
       if (it.kind === "devoir") patch.due_at = fromLocalInput($("#eDue", box).value);
       const stv = $("#eState", box).value; patch.draft = stv === "draft"; patch.archived = stv === "archived";
       if (it.kind === "qcm") {
@@ -1497,7 +1517,7 @@ function editStudent(id) {
 }
 async function copyInfo(id) {
   const s = byId("students", id);
-  const txt = `Bonjour ${s.name.split(" ")[0]},\nVoici votre accès à l'espace cours :\nLien : https://hamidsiahmed.com/cours.html\nNom : ${s.name}\nCode : ${s.code}`;
+  const txt = `Bonjour ${s.name.split(" ")[0]},\nVoici votre accès à votre espace élève STI2D :\nLien : https://sti2d.org/cours.html\nNom : ${s.name}\nCode : ${s.code}`;
   try { await navigator.clipboard.writeText(txt); alert("Accès copié ! Collez-le dans un message à l'élève."); }
   catch (e) { prompt("Copiez ce texte :", txt); }
 }
@@ -1985,5 +2005,6 @@ async function delAnn(id) { if (!confirm("Supprimer cette annonce ?")) return; a
 applyKind();
 start();
 </script>
+<script src="assets/admin-public.js?v=3"></script>
 </body>
 </html>

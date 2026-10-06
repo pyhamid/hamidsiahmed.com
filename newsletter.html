@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Newsletter · STI2D</title>
+<meta name="description" content="Recevez par e-mail les nouvelles ressources STI2D. Désinscription en un clic.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=11">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#1f4fd1">
+<link rel="icon" href="assets/icon-192.png"><link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./">STI2D<small>Plateforme pédagogique</small></a>
+  <nav><a href="./" class="nav-home">Accueil</a><a href="ressources.html">Ressources</a><a href="entraide.html">Entraide</a><a href="cours.html" class="nav-cta">Mon espace</a></nav>
+</div></header>
+
+<main><div class="wrap" style="max-width:640px">
+  <section class="pg-head"><h1 id="t">Recevez les nouveautés STI2D</h1></section>
+  <div id="box" class="card stack" style="margin-top:16px"></div>
+  <div class="card" style="margin-top:16px">
+    <h2 style="font-size:1.05rem">E-mail, notifications ou application ?</h2>
+    <p class="small" style="margin:0"><b>Newsletter</b> : un e-mail quand de nouvelles ressources sont publiées.<br>
+      <b>Notifications</b> : une alerte sur votre téléphone ou ordinateur, à activer sur la <a href="./#installer">page d'accueil</a>.<br>
+      <b>Application</b> : installez STI2D sur votre écran d'accueil (<a href="./#installer">comment faire</a>).</p>
+  </div>
+</div></main>
+
+<footer><div class="wrap foot">
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
+</div></footer>
+
+<script src="assets/public.js?v=1"></script>
+<script>
+const P = new URLSearchParams(location.search), box = $("#box");
+const ok = (h) => box.innerHTML = `<div class="msg ok" style="margin:0">${h}</div><p style="margin:0"><a href="ressources.html">Voir les ressources →</a></p>`;
+const ko = (h) => box.innerHTML = `<div class="msg err" style="margin:0">${h}</div>`;
+
+// Les liens des e-mails demandent un clic : un antivirus qui « visite » le lien ne peut ni confirmer ni désinscrire à votre place
+if (P.get("confirmer")) {
+  $("#t").textContent = "Confirmer mon inscription";
+  box.innerHTML = `<p style="margin:0">Cliquez pour confirmer que vous souhaitez recevoir les nouveautés STI2D par e-mail.</p><div><button class="btn lg" id="go">Je confirme mon inscription</button></div>`;
+  $("#go").onclick = async () => {
+    try { (await rpc("newsletter_confirm", { p_token: P.get("confirmer") })) ? ok("<b>C'est confirmé !</b> Vous recevrez les nouveautés STI2D. Chaque e-mail contient un lien de désinscription.") : ko("Ce lien n'est plus valable. Réinscrivez-vous depuis cette page."); }
+    catch (e) { ko("Lien invalide ou expiré."); }
+  };
+} else if (P.get("desinscrire")) {
+  $("#t").textContent = "Se désinscrire";
+  box.innerHTML = `<p style="margin:0">Vous ne recevrez plus aucun e-mail de STI2D.ORG.</p><div><button class="btn lg" id="go">Me désinscrire</button></div>`;
+  $("#go").onclick = async () => {
+    try { (await rpc("newsletter_unsubscribe", { p_token: P.get("desinscrire") })) ? ok("<b>Vous êtes désinscrit(e).</b> Vous pouvez vous réinscrire à tout moment.") : ko("Ce lien n'est pas valable."); }
+    catch (e) { ko("Lien invalide."); }
+  };
+} else {
+  box.innerHTML = `<p style="margin:0">Laissez votre adresse : vous recevrez un e-mail quand de nouvelles ressources (cours, QCM, annales…) seront publiées. Pas de publicité.</p>
+    <form id="f" class="row" novalidate><input id="em" type="email" autocomplete="email" placeholder="votre@email.fr" style="flex:1 1 220px;width:auto" required>
+      <input class="hp" id="hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true"><button class="btn" id="b">S'inscrire</button></form>
+    <p class="legal" style="margin:0">Un e-mail de confirmation vous sera envoyé (double inscription). Votre adresse sert uniquement à l'envoi des nouveautés. Désinscription en un clic dans chaque e-mail.</p>
+    <div id="m" class="msg hidden"></div>`;
+  $("#f").onsubmit = async e => {
+    e.preventDefault();
+    const em = $("#em").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { const m = $("#m"); m.className = "msg err"; m.textContent = "Adresse e-mail invalide."; return; }
+    $("#b").disabled = true;
+    try {
+      const r = await rpc("newsletter_subscribe", { p_email: em, p_hp: $("#hp").value });
+      ok(r === "confirmed" ? "Vous êtes déjà inscrit(e) aux nouveautés STI2D." : `<b>Presque fini !</b> Ouvrez l'e-mail envoyé à ${esc(em)} et cliquez sur le lien pour confirmer votre inscription.`);
+    } catch (err) { const m = $("#m"); m.className = "msg err"; m.textContent = "Erreur : " + err.message; $("#b").disabled = false; }
+  };
+}
+</script>
+</body>
+</html>

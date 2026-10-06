@@ -5,8 +5,8 @@ self.addEventListener("activate", e => e.waitUntil(self.clients.claim()));
 
 self.addEventListener("push", e => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: "Espace cours", body: e.data ? e.data.text() : "" }; }
-  e.waitUntil(self.registration.showNotification(d.title || "Espace cours", {
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = { title: "STI2D", body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.registration.showNotification(d.title || "STI2D", {
     body: d.body || "",
     icon: "assets/icon-192.png",
     badge: "assets/badge-96.png",
