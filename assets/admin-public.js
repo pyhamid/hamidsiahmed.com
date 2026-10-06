@@ -79,7 +79,8 @@ async function setFamily(id, v) { try { await q(sb.from("subjects").update({ fam
 
 // ================= Onglet 🌐 Site public =================
 const SECTIONS = { nouveautes: "🆕 Les nouveautés", decouvrir: "⭐ À découvrir (mises en avant)", entraide: "🙋 Questions & entraide",
-  accompagnement: "📨 Demander un accompagnement", newsletter: "📰 Newsletter", installer: "📲 Installer STI2D" };
+  accompagnement: "📨 Demander un accompagnement", newsletter: "📰 Newsletter", installer: "📲 Installer STI2D", espace: "🎓 Bloc « Espace élève » (en plus du bouton du haut)" };
+const SECTION_OFF = ["espace"];   // masquées tant qu'elles ne sont pas cochées
 function renderSite() {
   const p = panel("site"); if (!p) return;
   const home = setting("public_home", null);
@@ -91,7 +92,7 @@ function renderSite() {
       <p class="hint" style="margin:4px 0 0">${live.length} contenu(s) visible(s) par le public${pub.length > live.length ? ` · ${pub.length - live.length} en brouillon / programmé(s)` : ""}. Une rubrique sans contenu n'apparaît jamais.</p></div>
       <a class="btn" href="./?visiteur=1" target="_blank" rel="noopener">👁 Voir le site en tant que visiteur</a><a class="btn ghost" href="ressources.html?visiteur=1" target="_blank" rel="noopener">📚 Bibliothèque publique</a></div></div>
     <div class="card"><h2>🏠 Rubriques de la page d'accueil</h2>
-      ${home ? `<div class="checks" style="max-height:none">${Object.entries(SECTIONS).map(([k, v]) => `<label><input type="checkbox" data-sec="${k}" ${home[k] !== false ? "checked" : ""}> ${v}</label>`).join("")}</div>
+      ${home ? `<div class="checks" style="max-height:none">${Object.entries(SECTIONS).map(([k, v]) => `<label><input type="checkbox" data-sec="${k}" ${(SECTION_OFF.includes(k) ? home[k] === true : home[k] !== false) ? "checked" : ""}> ${v}</label>`).join("")}</div>
         <p class="hint">Décochez pour masquer une rubrique. « Nouveautés » et « À découvrir » ne s'affichent que s'il y a des contenus publics ; l'exemple de question n'apparaît que si vous en épinglez une (onglet Entraide).</p>`
       : `<p class="msg err">Exécutez d'abord <b>setup_v7.sql</b> dans Supabase.</p>`}</div>
     <div class="card"><h2>⭐ À découvrir <span class="small muted">(ordre d'affichage sur l'accueil)</span></h2>
