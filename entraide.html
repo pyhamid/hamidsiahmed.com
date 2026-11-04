@@ -120,18 +120,23 @@ function attachBox(el) {
     clear() { files.length = 0; draw(); },
   };
 }
+// E-mail facultatif : jamais affiché publiquement, lu par le professeur seul
+const EMAIL_HTML = `<div style="margin-top:12px"><label>Votre e-mail <span class="muted small">(facultatif)</span></label>
+  <input type="email" class="contact-email" maxlength="160" autocomplete="email" placeholder="vous@exemple.fr">
+  <div class="hint">🔒 Pour que le professeur puisse aussi vous répondre par e-mail. Il n'apparaît <b>pas</b> sur le site : <b>seul le professeur</b> le voit.</div></div>`;
+const emailOf = el => { const v = ($(".contact-email", el) || {}).value; const e = String(v || "").trim(); if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error("adresse e-mail invalide"); return e || null; };
 // Qui écrit ?
 function whoBox(el, pending) {
   if (PROF) { el.innerHTML = ""; return () => ({ p_author: "Professeur" }); }
   if (ME) {
     el.innerHTML = `<label class="inline"><input type="checkbox" id="asMe" checked style="width:auto"> Publier en tant que <b>${esc(String(ME.name).split(" ")[0])}</b> (élève inscrit·e, publication immédiate)</label>
-      <div id="pseudoBox" class="hidden" style="margin-top:8px"><label>Pseudo</label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>`;
+      <div id="pseudoBox" class="hidden" style="margin-top:8px"><label>Pseudo</label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>` + EMAIL_HTML;
     $("#asMe", el).onchange = () => $("#pseudoBox", el).classList.toggle("hidden", $("#asMe", el).checked);
-    return () => $("#asMe", el).checked ? { p_author: "", p_name: ME.name, p_code: ME.code } : { p_author: $(".pseudo", el).value };
+    return () => ({ ...($("#asMe", el).checked ? { p_author: "", p_name: ME.name, p_code: ME.code } : { p_author: $(".pseudo", el).value }), p_email: emailOf(el) });
   }
   el.innerHTML = `<div class="form-grid"><div><label>Pseudo <span class="req">*</span></label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>
-    <div class="hint" style="align-self:end">${pending}</div></div>`;
-  return () => ({ p_author: $(".pseudo", el).value });
+    <div class="hint" style="align-self:end">${pending}</div></div>` + EMAIL_HTML;
+  return () => ({ p_author: $(".pseudo", el).value, p_email: emailOf(el) });
 }
 const attHtml = (atts) => (atts || []).length ? `<div class="atts">${atts.map(a => /^image\//.test(a.mime)
   ? `<a href="${esc(forumUrl(a.path))}" target="_blank" rel="noopener"><img src="${esc(forumUrl(a.path))}" alt="${esc(a.name)}" loading="lazy"></a>`
