@@ -138,6 +138,8 @@ async function loadForum() {
   } catch (e) { panel("entraide").innerHTML = `<div class="card msg err">Entraide indisponible : exécutez setup_v7.sql (${esc(e.message)})</div>`; return false; }
   return true;
 }
+// e-mail laissé par l'élève (jamais montré au public) : lien pour lui répondre
+const mailLine = r => r.contact_email ? `<div class="small" style="margin-top:6px">✉️ <a href="mailto:${esc(r.contact_email)}?subject=${encodeURIComponent("Re : " + (r.title || threadOf(r.thread_id).title || "ta question STI2D"))}">${esc(r.contact_email)}</a> <span class="muted">· visible par vous seul</span></div>` : "";
 const threadOf = id => FX.threads.find(t => t.id === id) || {};
 function renderForum() {
   const p = panel("entraide");
@@ -152,7 +154,7 @@ function renderForum() {
   const item = ({ k, r }) => `<div class="doc"><div class="body">
       <div class="row" style="gap:8px"><span class="badge">${k === "thread" ? "Question" : "Réponse"}</span><b>${esc(r.author)}</b><span class="small muted">${fmtDT(r.created_at)}</span>${r.reports ? `<span class="pill late">⚑ ${r.reports} signalement(s)</span>` : ""}<span class="pill ${ST[r.status][0]}">${ST[r.status][1]}</span></div>
       ${k === "thread" ? `<div class="title" style="margin-top:6px">${esc(r.title)}</div>` : `<div class="small muted" style="margin-top:6px">dans « ${esc(threadOf(r.thread_id).title || "?")} »</div>`}
-      <div class="comment">${esc(r.body)}</div>${(r.attachments || []).length ? `<div class="uses">${attLinks(r.attachments)}</div>` : ""}
+      <div class="comment">${esc(r.body)}</div>${mailLine(r)}${(r.attachments || []).length ? `<div class="uses">${attLinks(r.attachments)}</div>` : ""}
       <div class="row" style="margin-top:8px">
         ${r.status !== "published" ? `<button class="btn sm" onclick="fxSet('${k}','${r.id}',{status:'published'})">✔ Publier</button>` : ""}
         ${r.status !== "hidden" ? `<button class="btn sm ghost" onclick="fxSet('${k}','${r.id}',{status:'hidden'})">🚫 ${r.status === "pending" ? "Refuser" : "Masquer"}</button>` : ""}
@@ -250,13 +252,13 @@ function fxOpen(id) {
   const posts = FX.posts.filter(x => x.thread_id === id);
   const box = openModal(`<div class="fx-thread" data-id="${id}"><div class="row"><h2 style="margin:0;flex:1">${esc(t.title)}</h2><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
     <div class="small muted" style="margin:4px 0 10px">${esc(t.author)} · ${fmtDT(t.created_at)} · <span class="pill ${ST[t.status][0]}">${ST[t.status][1]}</span></div>
-    <div class="comment" style="margin:0">${esc(t.body)}</div>${(t.attachments || []).length ? `<div class="uses">${attLinks(t.attachments)}</div>` : ""}
+    <div class="comment" style="margin:0">${esc(t.body)}</div>${mailLine(t)}${(t.attachments || []).length ? `<div class="uses">${attLinks(t.attachments)}</div>` : ""}
     <div class="row" style="margin-top:8px">${t.status !== "published" ? `<button class="btn sm" onclick="fxSet('thread','${id}',{status:'published'})">✔ Publier</button>` : `<button class="btn sm ghost" onclick="fxSet('thread','${id}',{status:'hidden'})">🚫 Masquer</button>`}
       <button class="btn sm ghost" onclick="fxSet('thread','${id}',{closed:${!t.closed}})">${t.closed ? "🔓 Rouvrir" : "🔒 Fermer"}</button>
       <a class="btn sm ghost" href="entraide.html?q=${id}" target="_blank" rel="noopener">👁 Page publique</a></div>
     <h3 style="margin:16px 0 8px">Réponses (${posts.length})</h3>
     ${posts.map(x => `<div class="sess ${x.status !== "published" ? "past" : ""}"><div class="row" style="gap:8px"><b>${esc(x.author)}</b><span class="small muted">${fmtDT(x.created_at)}</span><span class="pill ${ST[x.status][0]}">${ST[x.status][1]}</span>${x.is_solution ? `<span class="pill done">✔ Solution</span>` : ""}</div>
-        <div style="white-space:pre-wrap;margin-top:6px">${esc(x.body)}</div>${(x.attachments || []).length ? `<div class="uses">${attLinks(x.attachments)}</div>` : ""}
+        <div style="white-space:pre-wrap;margin-top:6px">${esc(x.body)}</div>${mailLine(x)}${(x.attachments || []).length ? `<div class="uses">${attLinks(x.attachments)}</div>` : ""}
         <div class="row" style="margin-top:6px">${x.status !== "published" ? `<button class="btn sm" onclick="fxSet('post','${x.id}',{status:'published'})">✔ Publier</button>` : `<button class="btn sm ghost" onclick="fxSet('post','${x.id}',{status:'hidden'})">🚫 Masquer</button>`}
           <button class="btn sm ghost" onclick="fxSet('post','${x.id}',{is_solution:${!x.is_solution}})">${x.is_solution ? "Retirer « solution »" : "✔ Marquer comme solution"}</button>
           <button class="btn sm danger" onclick="fxDel('post','${x.id}')">🗑</button></div></div>`).join("") || `<p class="small muted">Pas encore de réponse.</p>`}
