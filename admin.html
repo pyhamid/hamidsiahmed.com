@@ -85,7 +85,7 @@
       <div><label>Élève(s)</label><div id="sessStu" class="checks" style="max-height:140px"></div></div>
       <div class="grid3">
         <div><label>Date</label><input id="sDate" type="date" required></div>
-        <div><label>Heure</label><input id="sTime" type="time" required value="10:00"></div>
+        <div><label>Heure</label><div class="row" style="gap:6px;flex-wrap:nowrap"><input id="sTime" type="time" required style="flex:1;min-width:0"><button type="button" class="btn sm ghost" id="sNow" title="Date d'aujourd'hui et heure actuelle">▶ Maintenant</button></div></div>
         <div><label>Durée</label><select id="sDur"><option value="30">30 min</option><option value="45">45 min</option><option value="60" selected>1 h</option><option value="90">1 h 30</option><option value="120">2 h</option></select></div>
       </div>
       <div class="grid3">
@@ -306,6 +306,7 @@ Puissance électrique → P = U × I"></textarea>
 <script src="assets/common.js?v=6"></script>
 <script src="assets/qcm.js?v=3"></script>
 <script src="assets/viewer.js?v=1"></script>
+<script src="assets/time24.js?v=1"></script>
 <script>
 const S = { students: [], groups: [], sg: [], subjects: [], chapters: [], items: [], iStu: [], iGrp: [], subs: [], msgs: [], anns: [], aStu: [], aGrp: [],
   sessions: [], sStu: [], views: [], memo: [], attempts: [], settings: [], res: [], iRes: [], rStu: [], push: [] };
@@ -1620,7 +1621,9 @@ function seriesInfo(s) {
     ${nx.length > 1 ? `<details class="small" style="margin-top:4px"><summary style="cursor:pointer;color:var(--muted)">Voir / gérer les dates</summary>${nx.map(x => `<div class="row" style="gap:6px;padding:3px 0">${dayLbl(x.starts_at)} ${new Date(x.starts_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · ${hm(x.starts_at)}<div class="spacer"></div><button class="btn sm ghost" onclick="editSess('${x.id}')">✏️</button><button class="btn sm danger" onclick="delSess('${x.id}')">🗑</button></div>`).join("")}</details>` : ""}`;
 }
 function sessRow(s, compact) {
-  const names = sessStudents(s.id).map(nameOf).join(", ") || "<i>aucun élève</i>";
+  const ids = sessStudents(s.id);
+  const names = compact ? (ids.map(nameOf).join(", ") || "<i>aucun élève</i>")
+    : (ids.map(id => `<span class="chip">${esc(nameOf(id))}${ids.length > 1 ? ` <button type="button" title="Retirer ${esc(nameOf(id))} de CETTE séance seulement (les autres dates ne changent pas)" onclick="removeFromSess('${s.id}','${id}')">✕</button>` : ""}</span>`).join(" ") || "<i>aucun élève</i>");
   const nIt = S.items.filter(i => i.session_id === s.id).length, link = sessLink(s);
   const st = s.status === "cancelled" ? `<span class="pill late">Annulée</span>` : s.status === "done" ? `<span class="pill done">Faite</span>` : sessEnd(s) < new Date() ? `<span class="pill wait">À clôturer</span>` : `<span class="pill todo">Prévue</span>`;
   return `<div class="sess"><div class="row">
@@ -1631,6 +1634,12 @@ function sessRow(s, compact) {
       <button class="btn sm ghost" onclick="sessNotes('${s.id}')">📝 Compte-rendu</button>
       ${compact ? "" : `<button class="btn sm ghost" onclick="editSess('${s.id}')">✏️</button><button class="btn sm danger" onclick="delSess('${s.id}')">🗑</button>`}
     </div>${s.notes ? `<div class="comment" style="margin-top:8px">${esc(s.notes)}</div>` : ""}</div>`;
+}
+// Retire un seul élève d'une seule séance (« annulé pour lui ») : les autres élèves et les autres dates d'une séance fixe ne bougent pas.
+async function removeFromSess(id, sid) {
+  const s = byId("sessions", id);
+  if (!confirm(`Retirer ${nameOf(sid)} de la séance du ${dayLbl(s.starts_at).toLowerCase()} à ${hm(s.starts_at)} ?\n(les autres élèves et les autres dates ne changent pas)`)) return;
+  try { await q(sb.from("session_students").delete().eq("session_id", id).eq("student_id", sid)); loadAll(); } catch (err) { alert("Erreur : " + err.message); }
 }
 function renderSessAdmin() {
   const now = new Date();
@@ -1647,13 +1656,23 @@ function fillSessForm() {
   const cs = $("#sSub").value;
   $("#sSub").innerHTML = `<option value="">—</option>` + S.subjects.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join(""); $("#sSub").value = cs;
   fillSessChap();
-  if (!$("#sDate").value) { const d = new Date(); d.setDate(d.getDate() + 1); $("#sDate").value = toLocalInput(d).slice(0, 10); }
+  if (!sessTouched) applySessDefaults();   // tant que vous n'avez pas touché à la date / l'heure : aujourd'hui, au bon créneau
   if (document.activeElement !== $("#setMeet")) $("#setMeet").value = setting("meet_link", "");
   if (document.activeElement !== $("#setBefore")) $("#setBefore").value = setting("join_before_min", 10);
   $("#sLink").placeholder = setting("meet_link", "") ? "par défaut : " + setting("meet_link", "") : "https://meet.google.com/…";
 }
 function fillSessChap() { const c = $("#sCh").value; $("#sCh").innerHTML = `<option value="">—</option>` + S.chapters.filter(x => x.subject_id === $("#sSub").value).map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join(""); $("#sCh").value = c; }
 $("#sSub").onchange = fillSessChap;
+// Date et heure proposées : AUJOURD'HUI, sur un créneau de 30 min. Jusqu'à 10 min après l'heure ronde on garde ce créneau (17:08 → 17:00), sinon le suivant (17:11 → 17:30).
+let sessTouched = false;
+function nowSlot(d = new Date()) {
+  const m = d.getHours() * 60 + d.getMinutes(), r = m % 30, start = r <= 10 ? m - r : m - r + 30, p = n => String(n).padStart(2, "0");
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate() + (start >= 1440 ? 1 : 0)), s = start % 1440;
+  return { date: toLocalInput(day).slice(0, 10), time: `${p(Math.floor(s / 60))}:${p(s % 60)}` };
+}
+function applySessDefaults() { const n = nowSlot(); $("#sDate").value = n.date; $("#sTime").value = n.time; }
+["#sDate", "#sTime"].forEach(s => $(s).addEventListener("input", () => { sessTouched = true; }));
+$("#sNow").onclick = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); $("#sDate").value = toLocalInput(d).slice(0, 10); $("#sTime").value = `${p(d.getHours())}:${p(d.getMinutes())}`; sessTouched = true; };
 $("#sRepeat").onchange = () => { $("#sUntilBox").classList.toggle("hidden", !$("#sRepeat").checked); if (!$("#sUntil").value) { const d = new Date(); d.setMonth(d.getMonth() + 3); $("#sUntil").value = toLocalInput(d).slice(0, 10); } };
 $("#setForm").onsubmit = async e => {
   e.preventDefault();
@@ -1682,7 +1701,7 @@ $("#sessForm").onsubmit = async e => {
     const made = await q(sb.from("sessions").insert(rows).select());
     await q(sb.from("session_students").insert(made.flatMap(m => stu.map(sid => ({ session_id: m.id, student_id: sid })))));
     showMsg($("#sessMsg"), made.length > 1 ? `${made.length} séances créées (chaque semaine) ✔` : "Séance créée ✔", "ok");
-    $("#sTitle").value = ""; $("#sLink").value = ""; $("#sRepeat").checked = false; $("#sUntilBox").classList.add("hidden");
+    $("#sTitle").value = ""; $("#sLink").value = ""; $("#sRepeat").checked = false; $("#sUntilBox").classList.add("hidden"); sessTouched = false; applySessDefaults();
     loadAll();
   } catch (err) { showMsg($("#sessMsg"), "Erreur : " + err.message); }
 };
@@ -1726,7 +1745,8 @@ function editSess(id) {
         <div><label>Chapitre</label><select id="eSc"></select></div>
         <div><label>Titre</label><input id="eTi" type="text" value="${esc(s.title || "")}"></div></div>
       <div><label>Lien Meet spécifique</label><input id="eL" type="text" value="${esc(s.meet_link || "")}" placeholder="vide = lien par défaut"></div>
-      ${s.series_id ? `<label class="inline"><input type="checkbox" id="eAll" checked style="width:auto"> 🔁 Appliquer aussi à toutes les séances suivantes de cette série</label>` : ""}
+      ${s.series_id ? `<label class="inline"><input type="checkbox" id="eAll" checked style="width:auto"> 🔁 Appliquer la date / l'heure / la matière aux séances suivantes de cette série</label>
+        <label class="inline"><input type="checkbox" id="eStuOnly" checked style="width:auto"> 👤 Retirer ou ajouter un élève : seulement pour cette date</label>` : ""}
       <div><button class="btn" type="submit">Enregistrer</button></div><div id="esM" class="msg hidden"></div></form>`);
   const fillSc = () => { $("#eSc", box).innerHTML = `<option value="">—</option>` + S.chapters.filter(c => c.subject_id === $("#eSs", box).value).map(c => `<option value="${c.id}" ${c.id === s.chapter_id ? "selected" : ""}>${esc(c.name)}</option>`).join(""); };
   fillSc(); $("#eSs", box).onchange = fillSc;
@@ -1738,6 +1758,7 @@ function editSess(id) {
       const targets = $("#eAll", box) && $("#eAll", box).checked ? S.sessions.filter(x => x.series_id === s.series_id && new Date(x.starts_at) >= new Date(s.starts_at)) : [s];
       for (const x of targets) {
         await q(sb.from("sessions").update({ ...common, starts_at: new Date(new Date(x.starts_at).getTime() + shift).toISOString() }).eq("id", x.id));
+        if (x.id !== s.id && $("#eStuOnly", box) && $("#eStuOnly", box).checked) continue;   // les séances suivantes gardent leurs élèves
         await q(sb.from("session_students").delete().eq("session_id", x.id));
         if (stu.length) await q(sb.from("session_students").insert(stu.map(sid => ({ session_id: x.id, student_id: sid }))));
       }
@@ -2008,7 +2029,7 @@ async function delAnn(id) { if (!confirm("Supprimer cette annonce ?")) return; a
 applyKind();
 start();
 </script>
-<script src="assets/admin-public.js?v=4"></script>
+<script src="assets/admin-public.js?v=5"></script>
 <script src="assets/admin-evals.js?v=2"></script>
 </body>
 </html>

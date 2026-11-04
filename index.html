@@ -20,6 +20,7 @@
 // Application installee : un eleve deja connecte retrouve directement son espace (comme avant)
 try { if (new URLSearchParams(location.search).get("app") === "1" && localStorage.getItem("eleve")) location.replace("cours.html"); } catch (e) {}
 </script>
+<style>.h-login{margin:16px 0 0;font-size:.95rem;color:var(--muted)}.h-login a{font-weight:600;text-decoration:none}</style>
 </head>
 <body class="home">
 <header class="top"><div class="wrap">
@@ -38,8 +39,9 @@ try { if (new URLSearchParams(location.search).get("app") === "1" && localStorag
       <p class="h-lead reveal d2">Une bibliothèque de ressources pour réussir en STI2D : cours, résumés, exercices corrigés, annales et QCM, rangés par niveau, par enseignement et par chapitre.</p>
       <div class="h-cta reveal d3">
         <a class="btn lg" href="ressources.html">Explorer les ressources</a>
-        <a class="btn lg line" href="cours.html">Mon espace élève →</a>
+        <a class="btn lg line" href="accompagnement.html">Demander un accompagnement</a>
       </div>
+      <p class="h-login reveal d3">Déjà élève ? <a href="cours.html">Accéder à mon espace →</a></p>
     </div>
   </section>
 
