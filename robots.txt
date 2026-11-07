@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /cours.html
+
+Sitemap: https://sti2d.org/sitemap.xml
