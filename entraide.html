@@ -127,15 +127,16 @@ const EMAIL_HTML = `<div style="margin-top:12px"><label>Votre e-mail <span class
 const emailOf = el => { const v = ($(".contact-email", el) || {}).value; const e = String(v || "").trim(); if (e && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error("adresse e-mail invalide"); return e || null; };
 // Qui écrit ?
 function whoBox(el, pending) {
+  const emailHtml = el.id === "nWho" ? EMAIL_HTML.replace("Pour que le professeur puisse aussi vous répondre par e-mail.", "Pour recevoir un e-mail lorsqu’une réponse à votre question est publiée, et permettre au professeur de vous contacter.") : EMAIL_HTML;
   if (PROF) { el.innerHTML = ""; return () => ({ p_author: "Professeur" }); }
   if (ME) {
     el.innerHTML = `<label class="inline"><input type="checkbox" id="asMe" checked style="width:auto"> Publier en tant que <b>${esc(String(ME.name).split(" ")[0])}</b> (élève inscrit·e, publication immédiate)</label>
-      <div id="pseudoBox" class="hidden" style="margin-top:8px"><label>Pseudo</label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>` + EMAIL_HTML;
+      <div id="pseudoBox" class="hidden" style="margin-top:8px"><label>Pseudo</label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>` + emailHtml;
     $("#asMe", el).onchange = () => $("#pseudoBox", el).classList.toggle("hidden", $("#asMe", el).checked);
     return () => ({ ...($("#asMe", el).checked ? { p_author: "", p_name: ME.name, p_code: ME.code } : { p_author: $(".pseudo", el).value }), p_email: emailOf(el) });
   }
   el.innerHTML = `<div class="form-grid"><div><label>Pseudo <span class="req">*</span></label><input type="text" class="pseudo" maxlength="30" placeholder="ex. Lina_STI2D"></div>
-    <div class="hint" style="align-self:end">${pending}</div></div>` + EMAIL_HTML;
+    <div class="hint" style="align-self:end">${pending}</div></div>` + emailHtml;
   return () => ({ p_author: $(".pseudo", el).value, p_email: emailOf(el) });
 }
 const attHtml = (atts) => (atts || []).length ? `<div class="atts">${atts.map(a => /^image\//.test(a.mime)
