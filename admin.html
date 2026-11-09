@@ -1866,7 +1866,7 @@ function hSessions() {
 const stuRow = (sid, stu) => S.sStu.find(x => x.session_id === sid && x.student_id === stu) || {};
 const payChips = s => { const ids = sessStudents(s.id), cs = $("#hStu").value;
   return ids.filter(id => !cs || id === cs).map(id => { const paid = !!stuRow(s.id, id).paid;
-    return `<button class="btn sm ${paid ? "" : "ghost"}" onclick="togglePaidStu('${s.id}','${id}')" title="${paid ? "Payé : cliquer pour remettre « à payer »" : "Cliquer quand " + esc(nameOf(id)) + " a payé cette séance"}">${ids.length > 1 ? esc(nameOf(id).split(" ")[0]) + " · " : ""}${paid ? "💶 Payé" : "À payer"}</button>`; }).join(""); };
+    return `<span style="display:inline-flex;gap:3px"><button class="btn sm ${paid ? "" : "ghost"}" onclick="togglePaidStu('${s.id}','${id}')" title="${paid ? "Payé : cliquer pour remettre « à payer »" : "Cliquer quand " + esc(nameOf(id)) + " a payé cette séance"}">${ids.length > 1 ? esc(nameOf(id).split(" ")[0]) + " · " : ""}${paid ? "💶 Payé" : "À payer"}</button>${ids.length > 1 ? `<button type="button" class="btn sm ghost" onclick="removeFromSess('${s.id}','${id}')" title="${esc(nameOf(id))} n'était pas à cette séance : le retirer (les autres élèves et les autres dates ne changent pas)" aria-label="Retirer ${esc(nameOf(id))} de cette séance">✕</button>` : ""}</span>`; }).join(""); };
 // toutes les paires (séance faite, élève) de la période affichée (et de l'élève choisi)
 function payPairs() { const cs = $("#hStu").value;
   return hSessions().filter(counts).flatMap(x => sessStudents(x.id).filter(id => !cs || id === cs).map(id => ({ id: x.id, stu: id, paid: !!stuRow(x.id, id).paid, min: realMin(x) }))); }
