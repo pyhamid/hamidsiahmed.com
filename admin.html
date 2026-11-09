@@ -1630,6 +1630,7 @@ function sessRow(s, compact) {
       <div style="min-width:0"><div class="sess-date">${dayLbl(s.starts_at)} · ${hm(s.starts_at)} – ${hm(sessEnd(s))} ${s.series_id ? `<span class="small muted" title="Séance fixe">🔁</span>` : ""}${s.actual_min != null && s.actual_min !== s.duration_min ? ` <span class="pill done" title="Durée réelle (prévu ${fmtH(s.duration_min)})">⏱ ${fmtH(s.actual_min)}</span>` : ""}</div>${compact ? "" : seriesInfo(s)}
         <div class="small muted">👤 ${names}${[byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).length ? " · " + esc([byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ")) : ""} · ${nIt} contenu(s)</div></div>
       <div class="spacer"></div>${st}
+      ${s.status === "cancelled" ? "" : `<button class="btn sm ${s.paid ? "" : "ghost"}" onclick="togglePaid('${s.id}')" title="${s.paid ? "Payée : cliquer pour remettre « à payer »" : "Cliquer pour marquer cette séance comme payée"}">${s.paid ? "💶 Payé" : "À payer"}</button>`}
       ${link && s.status === "planned" ? `<a class="btn sm" style="background:#1b7f4b" href="${esc(link)}" target="_blank" rel="noopener">🎥 Meet</a>` : ""}
       <button class="btn sm ghost" onclick="sessNotes('${s.id}')">📝 Compte-rendu</button>
       ${compact ? "" : `<button class="btn sm ghost" onclick="editSess('${s.id}')">✏️</button><button class="btn sm danger" onclick="delSess('${s.id}')">🗑</button>`}
@@ -1640,6 +1641,11 @@ async function removeFromSess(id, sid) {
   const s = byId("sessions", id);
   if (!confirm(`Retirer ${nameOf(sid)} de la séance du ${dayLbl(s.starts_at).toLowerCase()} à ${hm(s.starts_at)} ?\n(les autres élèves et les autres dates ne changent pas)`)) return;
   try { await q(sb.from("session_students").delete().eq("session_id", id).eq("student_id", sid)); loadAll(); } catch (err) { alert("Erreur : " + err.message); }
+}
+// Marque une séance comme payée (ou la remet « à payer »).
+async function togglePaid(id) {
+  const s = byId("sessions", id), paid = !s.paid;
+  try { await q(sb.from("sessions").update({ paid, paid_at: paid ? new Date().toISOString() : null }).eq("id", id)); loadAll(); } catch (err) { alert("Erreur : " + err.message); }
 }
 function renderSessAdmin() {
   const now = new Date();
