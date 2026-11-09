@@ -319,7 +319,7 @@ Puissance électrique → P = U × I
       }
       const c = cards[queue[0]];
       el.innerHTML = `<div class="qz">
-        <div class="qz-top"><span class="qz-count">Carte ${Math.min(done + 1, cards.length)} / ${cards.length}</span><span class="small muted">${queue.length} restante(s)</span></div>
+        <div class="qz-top"><span class="qz-count">Carte ${order.indexOf(queue[0]) + 1} / ${cards.length}</span><span class="small muted">${queue.length} restante(s)</span></div>
         <div class="qz-bar"><span style="width:${done / cards.length * 100}%"></span></div>
         <div class="fc ${shown ? "flip" : ""}">
           <div class="fc-label">${shown ? "Réponse" : "Question"}</div>
@@ -329,7 +329,14 @@ Puissance électrique → P = U × I
         <div class="qz-nav" style="justify-content:center">
           ${shown ? `<button type="button" class="btn danger" data-a="0">✘ Je ne savais pas</button><button type="button" class="btn" data-a="1" style="background:#1b7f4b">✔ Je savais</button>`
                   : `<button type="button" class="btn" data-show>🔄 Retourner la carte</button>`}
+        </div>
+        <div class="qz-nav" style="justify-content:center;margin-top:10px;gap:8px">
+          <button type="button" class="btn sm ghost" data-prev ${queue.length < 2 ? "disabled" : ""}>← Précédente</button>
+          <button type="button" class="btn sm ghost" data-next ${queue.length < 2 ? "disabled" : ""}>Suivante →</button>
         </div></div>`;
+      // parcourir sans répondre : la carte passe à la fin (suivante) ou revient en tête (précédente), sans compter « su » ni « pas su »
+      const pv = el.querySelector("[data-prev]"); if (pv) pv.onclick = () => { queue.unshift(queue.pop()); shown = false; draw(); };
+      const nx = el.querySelector("[data-next]"); if (nx) nx.onclick = () => { queue.push(queue.shift()); shown = false; draw(); };
       const sh = el.querySelector("[data-show]"); if (sh) sh.onclick = () => { shown = true; draw(); };
       el.querySelectorAll("[data-a]").forEach(b => b.onclick = () => {
         const k = queue.shift(), ok = b.dataset.a === "1";
