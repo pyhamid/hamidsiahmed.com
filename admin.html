@@ -1191,6 +1191,7 @@ function renderItems() {
         <div class="row" style="margin-top:10px">
           ${files.map(r => `<button class="btn sm ghost" onclick="openRes('${r.id}')" title="${esc(r.file_name)}">👁 ${esc(r.name.length > 24 ? r.name.slice(0, 22) + "…" : r.name)}${r.role === "correction" ? " (correction)" : ""}</button>`).join("")}
           ${it.kind === "qcm" ? `<button class="btn sm ghost" onclick="testQcm('${it.id}')">👁 Tester</button>` : ""}
+          ${it.kind === "memo" ? `<button class="btn sm ghost" onclick="testCards('${it.id}')">👁 Ouvrir la fiche</button>` : ""}
           ${it.kind !== "doc" ? `<button class="btn sm" onclick="openSuivi('${it.id}')">✅ Suivi (${nR}/${nT})</button>` : ""}
           <button class="btn sm ghost" onclick="editItem('${it.id}')">✏️ Modifier</button>
           ${pubBtn(it)}
@@ -1385,6 +1386,16 @@ function attemptsModal(itemId, sid) {
       await loadAll(true); attemptsModal(itemId, sid);
     } catch (err) { alert("Erreur : " + err.message); }
   });
+}
+// Aperçu d'une fiche à retenir (cartes à retourner), sans rien enregistrer.
+function testCards(id) {
+  const it = byId("items", id), cards = it.cards || [];
+  const box = openModal(`<div class="row"><h2 style="margin:0">Aperçu élève — ${esc(it.title)}</h2><div class="spacer"></div><button class="btn sm ghost" onclick="closeModal()">✕</button></div>
+    <p class="small muted" style="margin:8px 0 0">${cards.length} carte(s). Aperçu : rien n'est enregistré.</p><div id="tcBody" style="margin-top:14px"></div>`);
+  const el = $("#tcBody", box);
+  if (!cards.length) { el.innerHTML = `<div class="empty">Cette fiche ne contient aucune carte.</div>`; return; }
+  const go = () => QCM.flash(el, cards, { onDone: (r, out) => { out.innerHTML = `<button class="btn" type="button">🔄 Recommencer</button>`; out.querySelector("button").onclick = go; } });
+  go();
 }
 function testQcm(id) {
   const it = byId("items", id);
