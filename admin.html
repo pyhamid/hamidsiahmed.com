@@ -119,7 +119,8 @@
       </div>
       <div class="row"><label class="inline small"><input type="checkbox" id="hCancel" style="width:auto"> Afficher les séances annulées</label><div class="spacer"></div>
         <button type="button" class="btn sm ghost" id="hCopy">📋 Copier le récapitulatif</button><button type="button" class="btn sm ghost" id="hCsv">⬇ Excel (CSV)</button>
-        <button type="button" class="btn sm" id="hCut" title="La prochaine fois, « Depuis le dernier relevé » partira du lendemain de cette date">📌 Relevé fait jusqu'au …</button></div>
+        <button type="button" class="btn sm" id="hCut" title="La prochaine fois, « Depuis le dernier relevé » partira du lendemain de cette date">📌 Relevé fait jusqu'au …</button>
+        <button type="button" class="btn sm" id="hPaid" title="Marque comme payées toutes les séances faites de la période affichée (et de l'élève choisi)">💶 Tout marquer payé</button></div>
     </div>
     <div id="hStats" class="grid3"></div>
     <div id="hPerStu" class="card hidden"></div>
@@ -1850,6 +1851,7 @@ function hSessions() {
     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
 }
 // une ligne de séance avec la durée modifiable directement
+const payBtn = s => `<button class="btn sm ${s.paid ? "" : "ghost"}" onclick="togglePaid('${s.id}')" title="${s.paid ? "Payée : cliquer pour remettre « à payer »" : "Marquer cette séance comme payée"}">${s.paid ? "💶 Payé" : "À payer"}</button>`;
 function hRow(s) {
   const past = sessPast(s), canc = s.status === "cancelled", pending = s.status === "planned" && sessEnd(s) <= new Date();
   const what = [byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ");
@@ -1862,7 +1864,7 @@ function hRow(s) {
     <div class="hdur">${canc || !past ? `<span class="small muted">prévu ${fmtH(s.duration_min)}</span>`
       : `<button class="btn sm ghost" onclick="bumpReal('${s.id}',-15)" title="−15 min">−15</button><input type="text" value="${durTxt(realMin(s))}" title="Durée réelle (prévu ${fmtH(s.duration_min)})" onchange="setReal('${s.id}', this.value, this)" onkeydown="if(event.key==='Enter')this.blur()"><button class="btn sm ghost" onclick="bumpReal('${s.id}',15)" title="+15 min">+15</button>`}
       ${past && !canc && s.actual_min != null && s.actual_min !== s.duration_min ? `<span class="small" style="color:var(--ok);font-weight:700" title="Prévu ${fmtH(s.duration_min)}">${s.actual_min > s.duration_min ? "+" : "−"}${fmtH(Math.abs(s.actual_min - s.duration_min))}</span>` : ""}</div>
-    <div class="hst">${st}<button class="btn sm ghost" onclick="sessNotes('${s.id}')" title="Compte-rendu / statut">📝</button></div></div>`;
+    <div class="hst">${st}${canc || !counts(s) ? "" : payBtn(s)}<button class="btn sm ghost" onclick="sessNotes('${s.id}')" title="Compte-rendu / statut">📝</button></div></div>`;
 }
 async function setReal(id, v, input) {
   const m = typeof v === "number" ? v : parseDur(v);
@@ -1894,7 +1896,8 @@ function renderHours() {
   $("#dotH").innerHTML = pendingSess().length ? `<span class="dot">${pendingSess().length}</span>` : "";
   $("#hStats").innerHTML = `<div class="stat"><span class="small muted">Heures faites</span><b style="font-size:1.8rem">${fmtH(tot)}</b><span class="small muted">soit ${fmtDec(tot)} · ${done.length} séance(s)${tot !== planned ? ` · prévu ${fmtH(planned)} (${tot > planned ? "+" : "−"}${fmtH(Math.abs(tot - planned))})` : ""}</span></div>
     <div class="stat"><span class="small muted">À confirmer</span><b style="color:${pend.length ? "#a15c00" : "inherit"}">${pend.length}</b><span class="small muted">${pend.length ? "comptée(s) avec la durée prévue" : "tout est confirmé ✔"}</span></div>
-    <div class="stat"><span class="small muted">Encore prévu sur la période</span><b>${fmtH(futMin)}</b><span class="small muted">${fut.length} séance(s) à venir</span></div>`;
+    <div class="stat"><span class="small muted">Encore prévu sur la période</span><b>${fmtH(futMin)}</b><span class="small muted">${fut.length} séance(s) à venir</span></div>
+    ${(() => { const u = done.filter(x => !x.paid), um = u.reduce((a, x) => a + realMin(x), 0); return `<div class="stat"><span class="small muted">Reste à payer</span><b style="color:${u.length ? "#a15c00" : "inherit"}">${fmtH(um)}</b><span class="small muted">${u.length ? u.length + " séance(s) non payée(s)" : "tout est payé ✔"}</span></div>`; })()}`;
   $("#hConfirmAll").classList.toggle("hidden", !pend.length);
   $("#hConfirmAll").onclick = () => confirmSess(pend.map(s => s.id));
   // total par eleve (une seance de groupe compte pour chaque eleve present)
@@ -1916,15 +1919,22 @@ $("#hCopy").onclick = async () => { const t = hRecapText(); try { await navigato
 $("#hCsv").onclick = () => {
   const [from, to] = hRange(), rows = hSessions().filter(s => $("#hCancel").checked || s.status !== "cancelled");
   const c = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const lines = [["Date", "Début", "Fin prévue", "Élève(s)", "Matière", "Chapitre", "Titre", "Prévu (min)", "Réel (min)", "Réel (h)", "Statut"].map(c).join(";"),
+  const lines = [["Date", "Début", "Fin prévue", "Élève(s)", "Matière", "Chapitre", "Titre", "Prévu (min)", "Réel (min)", "Réel (h)", "Statut", "Payé"].map(c).join(";"),
     ...rows.map(s => [new Date(s.starts_at).toLocaleDateString("fr-FR"), hm(s.starts_at), hm(sessEnd(s)), sessStudents(s.id).map(nameOf).join(", "), byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title,
       s.duration_min, counts(s) ? realMin(s) : "", counts(s) ? String(Math.round(realMin(s) / 60 * 100) / 100).replace(".", ",") : "",
-      s.status === "cancelled" ? "Annulée" : s.status === "done" ? "Faite" : sessPast(s) ? "À confirmer" : "À venir"].map(c).join(";"))];
+      s.status === "cancelled" ? "Annulée" : s.status === "done" ? "Faite" : sessPast(s) ? "À confirmer" : "À venir", counts(s) ? (s.paid ? "Oui" : "Non") : ""].map(c).join(";"))];
   const tot = rows.filter(counts).reduce((a, s) => a + realMin(s), 0);
   lines.push("", [c("TOTAL"), "", "", "", "", "", "", "", tot, c(String(Math.round(tot / 60 * 100) / 100).replace(".", ","))].join(";"));
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" }));
   a.download = `heures_${ymd(from)}_${ymd(to)}${$("#hStu").value ? "_" + safeName(nameOf($("#hStu").value)) : ""}.csv`; a.click();
+};
+$("#hPaid").onclick = async () => {
+  const todo = hSessions().filter(x => counts(x) && !x.paid), cs = $("#hStu").value, [from, to] = hRange();
+  if (!todo.length) { toast("✔ Rien à marquer : tout est déjà payé sur cette période"); return; }
+  const m = todo.reduce((a, x) => a + realMin(x), 0);
+  if (!confirm(`Marquer comme PAYÉES ${todo.length} séance(s) (${fmtH(m)}) du ${from.toLocaleDateString("fr-FR")} au ${to.toLocaleDateString("fr-FR")}${cs ? " — " + nameOf(cs) : " — tous les élèves"} ?\n(vous pourrez les remettre « à payer » une par une)`)) return;
+  try { await q(sb.from("sessions").update({ paid: true, paid_at: new Date().toISOString() }).in("id", todo.map(x => x.id))); await loadAll(true); toast("💶 " + todo.length + " séance(s) marquée(s) payée(s)"); } catch (err) { alert("Erreur : " + err.message); }
 };
 $("#hCut").onclick = async () => {
   const [, to] = hRange(), next = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
