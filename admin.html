@@ -1632,7 +1632,6 @@ function sessRow(s, compact) {
       <div style="min-width:0"><div class="sess-date">${dayLbl(s.starts_at)} · ${hm(s.starts_at)} – ${hm(sessEnd(s))} ${s.series_id ? `<span class="small muted" title="Séance fixe">🔁</span>` : ""}${s.actual_min != null && s.actual_min !== s.duration_min ? ` <span class="pill done" title="Durée réelle (prévu ${fmtH(s.duration_min)})">⏱ ${fmtH(s.actual_min)}</span>` : ""}</div>${compact ? "" : seriesInfo(s)}
         <div class="small muted">👤 ${names}${[byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).length ? " · " + esc([byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ")) : ""} · ${nIt} contenu(s)</div></div>
       <div class="spacer"></div>${st}
-      ${s.status === "cancelled" ? "" : `<button class="btn sm ${s.paid ? "" : "ghost"}" onclick="togglePaid('${s.id}')" title="${s.paid ? "Payée : cliquer pour remettre « à payer »" : "Cliquer pour marquer cette séance comme payée"}">${s.paid ? "💶 Payé" : "À payer"}</button>`}
       ${link && s.status === "planned" ? `<a class="btn sm" style="background:#1b7f4b" href="${esc(link)}" target="_blank" rel="noopener">🎥 Meet</a>` : ""}
       <button class="btn sm ghost" onclick="sessNotes('${s.id}')">📝 Compte-rendu</button>
       ${compact ? "" : `<button class="btn sm ghost" onclick="editSess('${s.id}')">✏️</button><button class="btn sm danger" onclick="delSess('${s.id}')">🗑</button>`}
@@ -1644,10 +1643,11 @@ async function removeFromSess(id, sid) {
   if (!confirm(`Retirer ${nameOf(sid)} de la séance du ${dayLbl(s.starts_at).toLowerCase()} à ${hm(s.starts_at)} ?\n(les autres élèves et les autres dates ne changent pas)`)) return;
   try { await q(sb.from("session_students").delete().eq("session_id", id).eq("student_id", sid)); loadAll(); } catch (err) { alert("Erreur : " + err.message); }
 }
-// Marque une séance comme payée (ou la remet « à payer »).
-async function togglePaid(id) {
-  const s = byId("sessions", id), paid = !s.paid;
-  try { await q(sb.from("sessions").update({ paid, paid_at: paid ? new Date().toISOString() : null }).eq("id", id)); loadAll(); } catch (err) { alert("Erreur : " + err.message); }
+// Paiement : un élève, une séance (si deux élèves sont dans la même séance, chacun a sa case).
+async function togglePaidStu(id, stu) {
+  const r = S.sStu.find(x => x.session_id === id && x.student_id === stu); if (!r) return;
+  const paid = !r.paid;
+  try { await q(sb.from("session_students").update({ paid, paid_at: paid ? new Date().toISOString() : null }).eq("session_id", id).eq("student_id", stu)); loadAll(true); } catch (err) { alert("Erreur : " + err.message); }
 }
 function renderSessAdmin() {
   const now = new Date();
@@ -1767,8 +1767,9 @@ function editSess(id) {
       for (const x of targets) {
         await q(sb.from("sessions").update({ ...common, starts_at: new Date(new Date(x.starts_at).getTime() + shift).toISOString() }).eq("id", x.id));
         if (x.id !== s.id && $("#eStuOnly", box) && $("#eStuOnly", box).checked) continue;   // les séances suivantes gardent leurs élèves
+        const old = S.sStu.filter(r => r.session_id === x.id);   // on garde « payé » pour les élèves qui restent
         await q(sb.from("session_students").delete().eq("session_id", x.id));
-        if (stu.length) await q(sb.from("session_students").insert(stu.map(sid => ({ session_id: x.id, student_id: sid }))));
+        if (stu.length) await q(sb.from("session_students").insert(stu.map(sid => { const o = old.find(r => r.student_id === sid); return { session_id: x.id, student_id: sid, paid: !!(o && o.paid), paid_at: o && o.paid ? o.paid_at : null }; })));
       }
       closeModal(); loadAll();
     } catch (err) { showMsg($("#esM", box), "Erreur : " + err.message); } };
@@ -1862,7 +1863,15 @@ function hSessions() {
     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
 }
 // une ligne de séance avec la durée modifiable directement
-const payBtn = s => `<button class="btn sm ${s.paid ? "" : "ghost"}" onclick="togglePaid('${s.id}')" title="${s.paid ? "Payée : cliquer pour remettre « à payer »" : "Marquer cette séance comme payée"}">${s.paid ? "💶 Payé" : "À payer"}</button>`;
+const stuRow = (sid, stu) => S.sStu.find(x => x.session_id === sid && x.student_id === stu) || {};
+const payChips = s => { const ids = sessStudents(s.id), cs = $("#hStu").value;
+  return ids.filter(id => !cs || id === cs).map(id => { const paid = !!stuRow(s.id, id).paid;
+    return `<button class="btn sm ${paid ? "" : "ghost"}" onclick="togglePaidStu('${s.id}','${id}')" title="${paid ? "Payé : cliquer pour remettre « à payer »" : "Cliquer quand " + esc(nameOf(id)) + " a payé cette séance"}">${ids.length > 1 ? esc(nameOf(id).split(" ")[0]) + " · " : ""}${paid ? "💶 Payé" : "À payer"}</button>`; }).join(""); };
+// toutes les paires (séance faite, élève) de la période affichée (et de l'élève choisi)
+function payPairs() { const cs = $("#hStu").value;
+  return hSessions().filter(counts).flatMap(x => sessStudents(x.id).filter(id => !cs || id === cs).map(id => ({ id: x.id, stu: id, paid: !!stuRow(x.id, id).paid, min: realMin(x) }))); }
+async function setPaidPairs(list, paid) { const by = {}, now = new Date().toISOString(); list.forEach(p => (by[p.stu] = by[p.stu] || []).push(p.id));
+  for (const stu in by) await q(sb.from("session_students").update({ paid, paid_at: paid ? now : null }).eq("student_id", stu).in("session_id", by[stu])); }
 function hRow(s) {
   const past = sessPast(s), canc = s.status === "cancelled", pending = s.status === "planned" && sessEnd(s) <= new Date();
   const what = [byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title].filter(Boolean).join(" · ");
@@ -1871,11 +1880,11 @@ function hRow(s) {
     : s.status === "done" ? `<span class="pill done">Faite</span>` : `<span class="pill todo">À venir</span>`;
   return `<div class="hrow ${canc ? "cancel" : past ? "" : "future"} ${pending ? "pending" : ""}">
     <div class="hdate"><b>${d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</b><div class="small muted">${hm(s.starts_at)} – ${hm(sessEnd(s))}</div></div>
-    <div class="hwho"><div class="title">${esc(sessStudents(s.id).map(nameOf).join(", ") || "—")}</div>${what ? `<div class="small muted">${esc(what)}</div>` : ""}</div>
+    <div class="hwho"><div class="title">${esc(sessStudents(s.id).map(nameOf).join(", ") || "—")}</div>${what ? `<div class="small muted">${esc(what)}</div>` : ""}${canc || !counts(s) ? "" : `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${payChips(s)}</div>`}</div>
     <div class="hdur">${canc || !past ? `<span class="small muted">prévu ${fmtH(s.duration_min)}</span>`
       : `<button class="btn sm ghost" onclick="bumpReal('${s.id}',-15)" title="−15 min">−15</button><input type="text" value="${durTxt(realMin(s))}" title="Durée réelle (prévu ${fmtH(s.duration_min)})" onchange="setReal('${s.id}', this.value, this)" onkeydown="if(event.key==='Enter')this.blur()"><button class="btn sm ghost" onclick="bumpReal('${s.id}',15)" title="+15 min">+15</button>`}
       ${past && !canc && s.actual_min != null && s.actual_min !== s.duration_min ? `<span class="small" style="color:var(--ok);font-weight:700" title="Prévu ${fmtH(s.duration_min)}">${s.actual_min > s.duration_min ? "+" : "−"}${fmtH(Math.abs(s.actual_min - s.duration_min))}</span>` : ""}</div>
-    <div class="hst">${st}${canc || !counts(s) ? "" : payBtn(s)}<button class="btn sm ghost" onclick="sessNotes('${s.id}')" title="Compte-rendu / statut">📝</button></div></div>`;
+    <div class="hst">${st}<button class="btn sm ghost" onclick="sessNotes('${s.id}')" title="Compte-rendu / statut">📝</button></div></div>`;
 }
 async function setReal(id, v, input) {
   const m = typeof v === "number" ? v : parseDur(v);
@@ -1908,11 +1917,10 @@ function renderHours() {
   $("#hStats").innerHTML = `<div class="stat"><span class="small muted">Heures faites</span><b style="font-size:1.8rem">${fmtH(tot)}</b><span class="small muted">soit ${fmtDec(tot)} · ${done.length} séance(s)${tot !== planned ? ` · prévu ${fmtH(planned)} (${tot > planned ? "+" : "−"}${fmtH(Math.abs(tot - planned))})` : ""}</span></div>
     <div class="stat"><span class="small muted">À confirmer</span><b style="color:${pend.length ? "#a15c00" : "inherit"}">${pend.length}</b><span class="small muted">${pend.length ? "comptée(s) avec la durée prévue" : "tout est confirmé ✔"}</span></div>
     <div class="stat"><span class="small muted">Encore prévu sur la période</span><b>${fmtH(futMin)}</b><span class="small muted">${fut.length} séance(s) à venir</span></div>
-    ${(() => { const u = done.filter(x => !x.paid), um = u.reduce((a, x) => a + realMin(x), 0); return `<div class="stat"><span class="small muted">Reste à payer</span><b style="color:${u.length ? "#a15c00" : "inherit"}">${fmtH(um)}</b><span class="small muted">${u.length ? u.length + " séance(s) non payée(s)" : "tout est payé ✔"}</span></div>`; })()}`;
+    ${(() => { const u = payPairs().filter(x => !x.paid), um = u.reduce((a, x) => a + x.min, 0); return `<div class="stat"><span class="small muted">Reste à payer</span><b style="color:${u.length ? "#a15c00" : "inherit"}">${fmtH(um)}</b><span class="small muted">${u.length ? u.length + " paiement(s) en attente" : "tout est payé ✔"}</span></div>`; })()}`;
   $("#hConfirmAll").classList.toggle("hidden", !pend.length);
   $("#hConfirmAll").onclick = () => confirmSess(pend.map(s => s.id));
-  $("#hPaid").classList.toggle("hidden", !done.some(s => !s.paid));
-  $("#hUnpaid").classList.toggle("hidden", !done.some(s => s.paid));
+  { const pp = payPairs(); $("#hPaid").classList.toggle("hidden", !pp.some(x => !x.paid)); $("#hUnpaid").classList.toggle("hidden", !pp.some(x => x.paid)); }
   // total par eleve (une seance de groupe compte pour chaque eleve present)
   const per = {}; done.forEach(s => sessStudents(s.id).forEach(sid => { if (cs && sid !== cs) return; (per[sid] = per[sid] || { m: 0, n: 0 }); per[sid].m += realMin(s); per[sid].n++; }));
   const ids = Object.keys(per).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
@@ -1935,7 +1943,7 @@ $("#hCsv").onclick = () => {
   const lines = [["Date", "Début", "Fin prévue", "Élève(s)", "Matière", "Chapitre", "Titre", "Prévu (min)", "Réel (min)", "Réel (h)", "Statut", "Payé"].map(c).join(";"),
     ...rows.map(s => [new Date(s.starts_at).toLocaleDateString("fr-FR"), hm(s.starts_at), hm(sessEnd(s)), sessStudents(s.id).map(nameOf).join(", "), byId("subjects", s.subject_id).name, byId("chapters", s.chapter_id).name, s.title,
       s.duration_min, counts(s) ? realMin(s) : "", counts(s) ? String(Math.round(realMin(s) / 60 * 100) / 100).replace(".", ",") : "",
-      s.status === "cancelled" ? "Annulée" : s.status === "done" ? "Faite" : sessPast(s) ? "À confirmer" : "À venir", counts(s) ? (s.paid ? "Oui" : "Non") : ""].map(c).join(";"))];
+      s.status === "cancelled" ? "Annulée" : s.status === "done" ? "Faite" : sessPast(s) ? "À confirmer" : "À venir", counts(s) ? (() => { const n = sessStudents(s.id).filter(id => !$("#hStu").value || id === $("#hStu").value).filter(id => !stuRow(s.id, id).paid).map(nameOf); return n.length ? "Non payé : " + n.join(", ") : "Oui"; })() : ""].map(c).join(";"))];
   const tot = rows.filter(counts).reduce((a, s) => a + realMin(s), 0);
   lines.push("", [c("TOTAL"), "", "", "", "", "", "", "", tot, c(String(Math.round(tot / 60 * 100) / 100).replace(".", ","))].join(";"));
   const a = document.createElement("a");
@@ -1943,17 +1951,17 @@ $("#hCsv").onclick = () => {
   a.download = `heures_${ymd(from)}_${ymd(to)}${$("#hStu").value ? "_" + safeName(nameOf($("#hStu").value)) : ""}.csv`; a.click();
 };
 $("#hPaid").onclick = async () => {
-  const todo = hSessions().filter(x => counts(x) && !x.paid), cs = $("#hStu").value, [from, to] = hRange();
+  const todo = payPairs().filter(x => !x.paid), cs = $("#hStu").value, [from, to] = hRange();
   if (!todo.length) { toast("✔ Rien à marquer : tout est déjà payé sur cette période"); return; }
-  const m = todo.reduce((a, x) => a + realMin(x), 0);
-  if (!confirm(`Marquer comme PAYÉES ${todo.length} séance(s) (${fmtH(m)}) du ${from.toLocaleDateString("fr-FR")} au ${to.toLocaleDateString("fr-FR")}${cs ? " — " + nameOf(cs) : " — tous les élèves"} ?\n(vous pourrez les remettre « à payer » une par une)`)) return;
-  try { await q(sb.from("sessions").update({ paid: true, paid_at: new Date().toISOString() }).in("id", todo.map(x => x.id))); await loadAll(true); toast("💶 " + todo.length + " séance(s) marquée(s) payée(s)"); } catch (err) { alert("Erreur : " + err.message); }
+  const m = todo.reduce((a, x) => a + x.min, 0);
+  if (!confirm(`Marquer comme PAYÉ ${todo.length} paiement(s) (${fmtH(m)}) du ${from.toLocaleDateString("fr-FR")} au ${to.toLocaleDateString("fr-FR")}${cs ? " — " + nameOf(cs) : " — tous les élèves"} ?\n(vous pourrez en remettre un « à payer » avec son bouton)`)) return;
+  try { await setPaidPairs(todo, true); await loadAll(true); toast("💶 " + todo.length + " paiement(s) marqué(s) payé(s)"); } catch (err) { alert("Erreur : " + err.message); }
 };
 $("#hUnpaid").onclick = async () => {
-  const back = hSessions().filter(x => counts(x) && x.paid), [from, to] = hRange();
+  const back = payPairs().filter(x => x.paid), [from, to] = hRange();
   if (!back.length) return;
-  if (!confirm(`Remettre « À PAYER » ${back.length} séance(s) du ${from.toLocaleDateString("fr-FR")} au ${to.toLocaleDateString("fr-FR")}${$("#hStu").value ? " — " + nameOf($("#hStu").value) : ""} ?`)) return;
-  try { await q(sb.from("sessions").update({ paid: false, paid_at: null }).in("id", back.map(x => x.id))); await loadAll(true); toast("↩ " + back.length + " séance(s) remise(s) à payer"); } catch (err) { alert("Erreur : " + err.message); }
+  if (!confirm(`Remettre « À PAYER » ${back.length} paiement(s) du ${from.toLocaleDateString("fr-FR")} au ${to.toLocaleDateString("fr-FR")}${$("#hStu").value ? " — " + nameOf($("#hStu").value) : ""} ?`)) return;
+  try { await setPaidPairs(back, false); await loadAll(true); toast("↩ " + back.length + " paiement(s) remis à payer"); } catch (err) { alert("Erreur : " + err.message); }
 };
 $("#hCut").onclick = async () => {
   const [, to] = hRange(), next = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
