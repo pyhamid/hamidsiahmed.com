@@ -1,7 +1,39 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://sti2d.org/</loc><priority>1.0</priority></url>
-  <url><loc>https://sti2d.org/ressources.html</loc><priority>0.9</priority></url>
-  <url><loc>https://sti2d.org/entraide.html</loc><priority>0.7</priority></url>
-  <url><loc>https://sti2d.org/accompagnement.html</loc><priority>0.7</priority></url>
+  <url>
+    <loc>https://sti2d.org/</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressources.html</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/entraide.html</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/accompagnement.html</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=3586947d-63fe-4ff9-8388-184acd89a124</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=3a6a9346-497e-471a-876b-f36ce45d85b6</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=49be8088-2f8a-4929-a366-635e4d1d7697</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=49cf9a33-129b-4c03-bab3-b1b996205894</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=50da56c1-5f6d-4db3-b200-a04419fd57ac</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=523f07aa-9280-4f43-b4a4-5368058fe67e</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=ba977e50-7a90-4fa0-9589-4b196f72cd39</loc>
+  </url>
+  <url>
+    <loc>https://sti2d.org/ressource.html?id=c56d40ea-a466-40f9-8d77-9437e1fcb242</loc>
+  </url>
 </urlset>

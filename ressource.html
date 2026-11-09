@@ -16,21 +16,50 @@
   <nav><a href="./" class="nav-home">Accueil</a><a href="ressources.html" class="active">Ressources</a><a href="entraide.html">Entraide</a><a href="cours.html" class="nav-cta">Mon espace</a></nav>
 </div></header>
 
+<noscript><p>Activez JavaScript pour consulter cette ressource. <a href="ressources.html">Retrouver la bibliothèque STI2D</a>.</p></noscript>
 <main><div class="wrap" style="max-width:860px">
   <div id="res" class="stack" style="margin-top:28px"><div class="card empty">Chargement…</div></div>
 </div></main>
 
 <footer><div class="wrap foot">
-  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a><a href="mailto:contact@sti2d.org">contact@sti2d.org</a></div>
   <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
 </div></footer>
 
 <script src="assets/public.js?v=1"></script>
 <script src="assets/viewer.js?v=1"></script>
-<script src="assets/qcm.js?v=3"></script>
+<script src="assets/qcm.js?v=4"></script>
 <script>
 const ID = new URLSearchParams(location.search).get("id");
 let R = null;
+
+// Métadonnées propres à chaque ressource publique, sans paramètres de suivi.
+function resourceMeta(resource) {
+  const url = "https://sti2d.org/ressource.html?id=" + encodeURIComponent(resource.id);
+  const context = [NIVEAU[resource.niveau], resource.subject, resource.chapter].filter(Boolean).join(" · ");
+  const title = resource.title + (NIVEAU[resource.niveau] ? " · " + NIVEAU[resource.niveau] + " STI2D" : " · STI2D");
+  const description = [resource.title, context, resource.comment || "Ressource pédagogique en accès libre sur STI2D.ORG."]
+    .filter(Boolean).join(" — ").replace(/\s+/g, " ").trim().slice(0, 160);
+  document.title = title;
+  function meta(attr, name, value) {
+    let el = document.head.querySelector(`meta[${attr}="${name}"]`);
+    if (!el) { el = document.createElement("meta"); el.setAttribute(attr, name); document.head.appendChild(el); }
+    el.content = value;
+  }
+  meta("name", "description", description);
+  meta("property", "og:title", title);
+  meta("property", "og:description", description);
+  meta("property", "og:url", url);
+  meta("property", "og:type", "website");
+  let canonical = document.head.querySelector('link[rel="canonical"]');
+  if (!canonical) { canonical = document.createElement("link"); canonical.rel = "canonical"; document.head.appendChild(canonical); }
+  canonical.href = url;
+}
+function unavailableResource() {
+  document.title = "Ressource indisponible · STI2D";
+  const meta = document.createElement("meta"); meta.name = "robots"; meta.content = "noindex";
+  document.head.appendChild(meta);
+}
 
 async function link(fid, download) {
   const f = await rpc("public_file", { p_item: R.id, p_res: fid });
@@ -73,11 +102,11 @@ function startCards() {
 
 (async () => {
   const box = $("#res");
-  if (!ID) { box.innerHTML = `<div class="card empty">Ressource introuvable. <a href="ressources.html">Voir toutes les ressources</a></div>`; return; }
+  if (!ID) { unavailableResource(); box.innerHTML = `<div class="card empty">Ressource introuvable. <a href="ressources.html">Voir toutes les ressources</a></div>`; return; }
   try { R = await rpc("public_item", { p_id: ID }); } catch (e) { box.innerHTML = `<div class="card empty">Chargement impossible pour le moment. Réessayez dans un instant.</div>`; return; }
-  if (!R) { box.innerHTML = `<div class="card empty">Cette ressource n'est pas (ou plus) disponible. <a href="ressources.html">Voir toutes les ressources</a></div>`; return; }
+  if (!R) { unavailableResource(); box.innerHTML = `<div class="card empty">Cette ressource n'est pas (ou plus) disponible. <a href="ressources.html">Voir toutes les ressources</a></div>`; return; }
   const t = R.type, [ico, lbl] = RTYPE[t] || RTYPE.autre;
-  document.title = R.title + " · STI2D";
+  resourceMeta(R);
   const files = R.files.filter(f => f.role === "file"), corr = R.files.filter(f => f.role === "correction");
   const rights = [!R.allow_download && "téléchargement non autorisé", !R.allow_print && "impression non autorisée"].filter(Boolean);
   box.innerHTML = `

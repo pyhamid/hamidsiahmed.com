@@ -30,7 +30,10 @@
       <input id="q" type="search" placeholder="Rechercher une question…" aria-label="Rechercher">
       <select id="fN" aria-label="Niveau"><option value="">Tous niveaux</option><option value="1ere">Première</option><option value="term">Terminale</option></select>
       <select id="fS" aria-label="Enseignement"></select>
+      <select id="fStatus" aria-label="Réponses"><option value="">Toutes les questions</option><option value="unanswered">Sans réponse</option><option value="answered">Avec réponse</option></select>
+      <button type="button" class="btn ghost" id="clearFilters">Effacer les filtres</button>
     </div>
+    <p id="resultCount" class="small muted" role="status" aria-live="polite"></p>
     <div id="list"></div>
   </section>
 
@@ -61,7 +64,7 @@
 </div></main>
 
 <footer><div class="wrap foot">
-  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a></div>
+  <div class="foot-links"><a href="ressources.html">Ressources</a><a href="entraide.html">Questions & entraide</a><a href="accompagnement.html">Demander un accompagnement</a><a href="newsletter.html">Newsletter</a><a href="cours.html">Mon espace</a><a href="mailto:contact@sti2d.org">contact@sti2d.org</a></div>
   <div>© <span id="y"></span> STI2D.ORG · Plateforme pédagogique</div>
 </div></footer>
 
@@ -148,8 +151,10 @@ const initial = (n) => esc((String(n || "?").trim()[0] || "?").toUpperCase());
 let THREADS = [];
 function renderList() {
   const q = $("#q").value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim(), n = $("#fN").value, s = $("#fS").value;
-  const list = THREADS.filter(t => (!n || t.niveau === n) && (!s || t.subject_id === s)
+  const status = $("#fStatus").value;
+  const list = THREADS.filter(t => (!status || (status === "unanswered" ? Number(t.answers) === 0 : Number(t.answers) > 0)) && (!n || t.niveau === n) && (!s || t.subject_id === s)
     && (!q || (t.title + " " + t.excerpt).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(q)));
+  $("#resultCount").textContent = `${list.length} question${list.length > 1 ? "s" : ""} affichée${list.length > 1 ? "s" : ""}`;
   $("#list").innerHTML = list.length ? list.map(t => `<a class="th" href="?q=${t.id}">
       <div class="th-title">${t.pinned ? "📌 " : ""}${esc(t.title)}</div>
       <div class="th-ex">${esc(t.excerpt)}</div>
@@ -161,13 +166,14 @@ function renderList() {
 async function showList() {
   $("#vList").classList.remove("hidden");
   $("#list").innerHTML = `<div class="card empty">Chargement…</div>`;
-  try { THREADS = await rpc("forum_list", { p_limit: 300 }); } catch (e) { $("#list").innerHTML = `<div class="card empty">Chargement impossible pour le moment.</div>`; return; }
+  try { THREADS = await rpc("forum_list", { p_limit: 300 }); } catch (e) { $("#list").innerHTML = `<div class="card empty">Chargement impossible pour le moment. <button type="button" class="btn ghost" id="retryList">Réessayer</button></div>`; $("#retryList").onclick = showList; return; }
   const used = SUBJ.filter(s => THREADS.some(t => t.subject_id === s.id));
   $("#fS").innerHTML = `<option value="">Tous les enseignements</option>` + used.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
   $("#fS").classList.toggle("hidden", !used.length);
   renderList();
 }
-["#q", "#fN", "#fS"].forEach(s => $(s).addEventListener("input", renderList));
+$("#clearFilters").onclick = () => { ["#q", "#fN", "#fS", "#fStatus"].forEach(s => $(s).value = ""); renderList(); };
+["#q", "#fN", "#fS", "#fStatus"].forEach(s => $(s).addEventListener("input", renderList));
 
 // ---------- Discussion ----------
 async function showThread(id) {
