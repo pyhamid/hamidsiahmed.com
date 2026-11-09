@@ -120,7 +120,8 @@
       <div class="row"><label class="inline small"><input type="checkbox" id="hCancel" style="width:auto"> Afficher les séances annulées</label><div class="spacer"></div>
         <button type="button" class="btn sm ghost" id="hCopy">📋 Copier le récapitulatif</button><button type="button" class="btn sm ghost" id="hCsv">⬇ Excel (CSV)</button>
         <button type="button" class="btn sm" id="hCut" title="La prochaine fois, « Depuis le dernier relevé » partira du lendemain de cette date">📌 Relevé fait jusqu'au …</button>
-        <button type="button" class="btn sm" id="hPaid" title="Marque comme payées toutes les séances faites de la période affichée (et de l'élève choisi)">💶 Tout marquer payé</button></div>
+        <button type="button" class="btn sm" id="hPaid" title="Marque comme payées toutes les séances faites de la période affichée (et de l'élève choisi)">💶 Tout marquer payé</button>
+        <button type="button" class="btn sm ghost hidden" id="hUnpaid" title="Remet « à payer » toutes les séances payées de la période affichée">↩ Tout remettre « à payer »</button></div>
     </div>
     <div id="hStats" class="grid3"></div>
     <div id="hPerStu" class="card hidden"></div>
@@ -1830,16 +1831,26 @@ function presetRange(p) {
   if (p === "week") { const d = new Date(y, mo, t.getDate() - ((t.getDay() + 6) % 7)); return [d, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6)]; }
   if (p === "year") return [new Date(mo >= 8 ? y : y - 1, 8, 1), t];
   if (p === "since") { const c = setting("hours_since", null); return [c ? new Date(c + "T00:00") : new Date(y, mo, 1), t]; }
+  if (p && p.startsWith("m:")) { const [yy, mm] = p.slice(2).split("-").map(Number); return [new Date(yy, mm - 1, 1), new Date(yy, mm, 0)]; }
   return null;
 }
 function applyPreset(p) {
   hPreset = p; const r = presetRange(p); if (!r) return;
   $("#hFrom").value = ymd(r[0]); $("#hTo").value = ymd(r[1]);
-  $$("#hPreset button").forEach(b => b.classList.toggle("active", b.dataset.p === p));
+  $$("#hPreset button, #hMonths button").forEach(b => b.classList.toggle("active", b.dataset.p === p));
   renderHours();
 }
 seg("#hPreset", "p", applyPreset);
-["#hFrom", "#hTo"].forEach(k => $(k).addEventListener("change", () => { hPreset = "custom"; $$("#hPreset button").forEach(b => b.classList.remove("active")); renderHours(); }));
+(() => { // un bouton par mois récent : « Novembre », « Octobre »…
+  const box = document.createElement("div"); box.className = "seg"; box.id = "hMonths"; box.style.marginTop = "8px";
+  const t = new Date();
+  box.innerHTML = Array.from({ length: 6 }, (_, i) => { const d = new Date(t.getFullYear(), t.getMonth() - i, 1);
+    const n = d.toLocaleDateString("fr-FR", { month: "long" }), lbl = n.charAt(0).toUpperCase() + n.slice(1) + (d.getFullYear() !== t.getFullYear() ? " " + d.getFullYear() : "");
+    return `<button type="button" data-p="m:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}">${lbl}</button>`; }).join("");
+  $("#hPreset").after(box);
+  $$("#hMonths button").forEach(b => b.addEventListener("click", () => applyPreset(b.dataset.p)));
+})();
+["#hFrom", "#hTo"].forEach(k => $(k).addEventListener("change", () => { hPreset = "custom"; $$("#hPreset button, #hMonths button").forEach(b => b.classList.remove("active")); renderHours(); }));
 $("#hStu").addEventListener("change", renderHours); $("#hCancel").addEventListener("change", renderHours);
 function hRange() {
   if (!$("#hFrom").value) { const r = presetRange(hPreset) || presetRange("month"); $("#hFrom").value = ymd(r[0]); $("#hTo").value = ymd(r[1]); }
@@ -1900,6 +1911,8 @@ function renderHours() {
     ${(() => { const u = done.filter(x => !x.paid), um = u.reduce((a, x) => a + realMin(x), 0); return `<div class="stat"><span class="small muted">Reste à payer</span><b style="color:${u.length ? "#a15c00" : "inherit"}">${fmtH(um)}</b><span class="small muted">${u.length ? u.length + " séance(s) non payée(s)" : "tout est payé ✔"}</span></div>`; })()}`;
   $("#hConfirmAll").classList.toggle("hidden", !pend.length);
   $("#hConfirmAll").onclick = () => confirmSess(pend.map(s => s.id));
+  $("#hPaid").classList.toggle("hidden", !done.some(s => !s.paid));
+  $("#hUnpaid").classList.toggle("hidden", !done.some(s => s.paid));
   // total par eleve (une seance de groupe compte pour chaque eleve present)
   const per = {}; done.forEach(s => sessStudents(s.id).forEach(sid => { if (cs && sid !== cs) return; (per[sid] = per[sid] || { m: 0, n: 0 }); per[sid].m += realMin(s); per[sid].n++; }));
   const ids = Object.keys(per).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
@@ -1935,6 +1948,12 @@ $("#hPaid").onclick = async () => {
   const m = todo.reduce((a, x) => a + realMin(x), 0);
   if (!confirm(`Marquer comme PAYÉES ${todo.length} séance(s) (${fmtH(m)}) du ${from.toLocaleDateString("fr-FR")} au ${to.toLocaleDateString("fr-FR")}${cs ? " — " + nameOf(cs) : " — tous les élèves"} ?\n(vous pourrez les remettre « à payer » une par une)`)) return;
   try { await q(sb.from("sessions").update({ paid: true, paid_at: new Date().toISOString() }).in("id", todo.map(x => x.id))); await loadAll(true); toast("💶 " + todo.length + " séance(s) marquée(s) payée(s)"); } catch (err) { alert("Erreur : " + err.message); }
+};
+$("#hUnpaid").onclick = async () => {
+  const back = hSessions().filter(x => counts(x) && x.paid), [from, to] = hRange();
+  if (!back.length) return;
+  if (!confirm(`Remettre « À PAYER » ${back.length} séance(s) du ${from.toLocaleDateString("fr-FR")} au ${to.toLocaleDateString("fr-FR")}${$("#hStu").value ? " — " + nameOf($("#hStu").value) : ""} ?`)) return;
+  try { await q(sb.from("sessions").update({ paid: false, paid_at: null }).in("id", back.map(x => x.id))); await loadAll(true); toast("↩ " + back.length + " séance(s) remise(s) à payer"); } catch (err) { alert("Erreur : " + err.message); }
 };
 $("#hCut").onclick = async () => {
   const [, to] = hRange(), next = new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1);
